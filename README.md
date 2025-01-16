@@ -1,6 +1,6 @@
 # KOTD Weapon History Tracker
 
-Web application that tracks weapon prices and statistics from the Kick Open The Door (KOTD) game using Reddit data.
+Web application that stores store history from the Kick Open The Door (KOTD) game and displayes it.
 
 ## Setup
 
