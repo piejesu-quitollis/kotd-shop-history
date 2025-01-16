@@ -1,6 +1,7 @@
 # KOTD Weapon History Tracker
 
-Web application that stores store history from the Kick Open The Door (KOTD) game and displayes it.
+API that stores shop weapons history from the Kick Open The Door (KOTD) game and display it in a Web App.
+Primarily purpose is to not loose data for Piñata Market.
 
 ## Setup
 
