@@ -34,21 +34,21 @@ class WeaponDataFetcher {
 
     parseWeaponData(rawText) {
         try {
-            // Extract the last updated date
             const dateMatch = rawText.match(/Last Updated: (.*?) UTC/);
             if (!dateMatch) {
                 throw new Error('Could not find update date in the provided text.');
             }
     
-            const rawDate = dateMatch[1];
-            const formattedDate = rawDate.replace(' - 00:00', ' 00:00');
-            this.lastUpdateDate = new Date(formattedDate);
+            const rawDateTime = dateMatch[1];
+            const cleanDateTime = rawDateTime.replace(' - ', ' ').trim();
+            this.lastUpdateDate = new Date(`${cleanDateTime} UTC`);
     
             if (isNaN(this.lastUpdateDate.getTime())) {
-                throw new Error('Failed to parse the "Last Updated" date.');
+                console.error('Invalid date string:', cleanDateTime);
+                throw new Error('Failed to parse the update date and time.');
             }
     
-            console.log('Parsed update date:', this.lastUpdateDate);
+            console.log('Parsed update datetime:', this.lastUpdateDate.toISOString());
     
             // Extract the weapons section
             const weaponsMatch = rawText.match(
@@ -98,15 +98,15 @@ class WeaponDataFetcher {
     }
     
     async saveToDatabase(weapons) {
-        const today = this.lastUpdateDate.toISOString().split('T')[0];
-        const db = this.db; // Save a reference to `this.db` to use inside callbacks
+        const date = this.lastUpdateDate.toISOString().split('T')[0];
+        const timestamp = this.lastUpdateDate.toISOString();
+        const db = this.db;
     
         return new Promise((resolve, reject) => {
             db.serialize(() => {
-                // Check if data for the current date already exists
                 db.get(
-                    `SELECT id FROM WeaponSnapshots WHERE snapshot_date = ?`,
-                    [today],
+                    `SELECT id FROM WeaponSnapshots WHERE DATE(snapshot_date) = ?`,
+                    [date],
                     (err, row) => {
                         if (err) {
                             console.error('Error checking for existing snapshot:', err.message);
@@ -120,12 +120,11 @@ class WeaponDataFetcher {
                             return;
                         }
     
-                        // Start the transaction for saving new data
                         db.run('BEGIN TRANSACTION');
     
                         db.run(
-                            `INSERT INTO WeaponSnapshots (snapshot_date) VALUES (?)`,
-                            [today],
+                            `INSERT INTO WeaponSnapshots (snapshot_date, snapshot_time) VALUES (?, ?)`,
+                            [date, timestamp],
                             function (err) {
                                 if (err) {
                                     console.error('Error inserting snapshot:', err.message);
@@ -134,7 +133,7 @@ class WeaponDataFetcher {
                                     return;
                                 }
     
-                                const snapshotId = this.lastID; // Get the ID of the inserted snapshot
+                                const snapshotId = this.lastID;
                                 const stmt = db.prepare(`
                                     INSERT INTO Weapons (
                                         id, snapshot_id, price, type, name, 

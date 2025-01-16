@@ -22,7 +22,7 @@ const TableCard = ({ data, date }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl border border-gray-100">
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl border border-gray-100 mb-5">
       <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
         <h3 className="text-xl font-bold text-white">Shop: {date}</h3>
       </div>

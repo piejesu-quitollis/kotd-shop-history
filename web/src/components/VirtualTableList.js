@@ -4,18 +4,17 @@ import TableCard from './TableCard';
 const VirtualTableList = () => {
   const [dates, setDates] = useState([]);
   const [weaponsData, setWeaponsData] = useState({});
-  const [positions, setPositions] = useState([]);   // { date, top, bottom } for each date
+  const [positions, setPositions] = useState([]);
   const [totalHeight, setTotalHeight] = useState(0);
   const [visibleDates, setVisibleDates] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const containerRef = useRef(null);
-  // A ref object where each date maps to the DOM element of its card
   const cardRefs = useRef({});
+  
+  // Add buffer zones for smoother scrolling
+  const BUFFER_SIZE = 500; // pixels to add above and below viewport
 
-  // ----------------
-  // FETCH THE DATES
-  // ----------------
   const fetchDates = async () => {
     try {
       const response = await fetch('http://localhost:3001/api/dates');
@@ -23,7 +22,6 @@ const VirtualTableList = () => {
         throw new Error(`Failed to fetch dates: ${response.statusText}`);
       }
       const data = await response.json();
-      // Suppose each object has a "snapshot_date" property
       return data.map((d) => d.snapshot_date);
     } catch (error) {
       console.error('Error fetching dates:', error);
@@ -44,9 +42,6 @@ const VirtualTableList = () => {
     }
   };
 
-  // -----------------------------
-  // LOAD THE DATA ONCE AT START
-  // -----------------------------
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -69,11 +64,8 @@ const VirtualTableList = () => {
     fetchData();
   }, []);
 
-  // -----------------------------------------------------
-  // 1) Initialize positions array when we get new dates
-  // -----------------------------------------------------
+  // Initialize positions with proper spacing
   useEffect(() => {
-    // If no dates, positions remain empty
     if (!dates.length) {
       setPositions([]);
       setTotalHeight(0);
@@ -81,96 +73,97 @@ const VirtualTableList = () => {
       return;
     }
 
-    // Start each date with top/bottom = 0.
-    // We'll fill these values after measuring the DOM.
-    const initialPositions = dates.map((date) => ({
+    // Estimate initial height for better initial rendering
+    const ESTIMATED_CARD_HEIGHT = 400; // Adjust based on your typical card height
+    const initialPositions = dates.map((date, index) => ({
       date,
-      top: 0,
-      bottom: 0,
+      top: index * ESTIMATED_CARD_HEIGHT,
+      bottom: (index + 1) * ESTIMATED_CARD_HEIGHT,
     }));
 
     setPositions(initialPositions);
+    setTotalHeight(dates.length * ESTIMATED_CARD_HEIGHT);
   }, [dates]);
 
-  // ------------------------------------------------------
-  // 2) After render, measure each card's actual height
-  // ------------------------------------------------------
+  // Measure actual heights and update positions
   useEffect(() => {
     if (!positions.length) return;
 
-    // We must measure in a layout effect or after the
-    // DOM has rendered the elements in order to read their heights.
-    // Here we do it in a normal effect, but often you'd do it in 
-    // useLayoutEffect for more accurate measurement timing.
-    const measuredPositions = [];
-    let runningOffset = 0;
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      const measuredPositions = [];
+      let runningOffset = 0;
 
-    for (const pos of positions) {
-      // The card’s DOM element
-      const cardEl = cardRefs.current[pos.date];
-      // If it’s not rendered in the DOM yet (for whatever reason), skip
-      if (!cardEl) {
-        measuredPositions.push({ ...pos, top: runningOffset, bottom: runningOffset });
-        continue;
+      for (const pos of positions) {
+        const cardEl = cardRefs.current[pos.date];
+        if (!cardEl) {
+          // Keep estimated height if element isn't measured yet
+          measuredPositions.push({ ...pos });
+          runningOffset = pos.bottom;
+          continue;
+        }
+
+        const height = cardEl.offsetHeight;
+        const top = runningOffset;
+        const bottom = top + height;
+        runningOffset = bottom;
+
+        measuredPositions.push({
+          date: pos.date,
+          top,
+          bottom,
+        });
       }
-      const height = cardEl.offsetHeight;
-      const top = runningOffset;
-      const bottom = top + height;
-      runningOffset = bottom;
 
-      measuredPositions.push({
-        date: pos.date,
-        top,
-        bottom,
-      });
-    }
-
-    // Update positions with real measurements
-    setPositions(measuredPositions);
-
-    // Compute totalHeight from the last item’s bottom
-    if (measuredPositions.length > 0) {
-      const lastBottom = measuredPositions[measuredPositions.length - 1].bottom;
-      setTotalHeight(lastBottom);
-    }
+      setPositions(measuredPositions);
+      if (measuredPositions.length > 0) {
+        setTotalHeight(measuredPositions[measuredPositions.length - 1].bottom);
+      }
+    });
   }, [positions, weaponsData]);
 
-  // ------------------------------------------------------
-  // 3) Determine visible items on scroll
-  // ------------------------------------------------------
+  // Improved scroll handler with buffer zones
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
     const scrollTop = containerRef.current.scrollTop;
     const viewportHeight = containerRef.current.clientHeight;
 
-    // Filter positions to those that overlap our viewport range
-    // i.e. item is visible if [top, bottom] intersects [scrollTop, scrollTop+viewportHeight]
+    // Add buffer zones above and below viewport
+    const visibleTop = Math.max(0, scrollTop - BUFFER_SIZE);
+    const visibleBottom = scrollTop + viewportHeight + BUFFER_SIZE;
+
     const inViewDates = positions
       .filter(({ top, bottom }) => {
-        return bottom >= scrollTop && top <= scrollTop + viewportHeight;
+        // Check if any part of the item is within the buffered viewport
+        return bottom >= visibleTop && top <= visibleBottom;
       })
       .map((p) => p.date);
 
     setVisibleDates(inViewDates);
   }, [positions]);
 
-  // Attach scroll handler once
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    container.addEventListener('scroll', handleScroll, { passive: true });
-    // run once on mount
-    handleScroll();
+    // Use requestAnimationFrame for smoother scroll handling
+    let rafId;
+    const scrollListener = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        handleScroll();
+      });
+    };
+
+    container.addEventListener('scroll', scrollListener, { passive: true });
+    handleScroll(); // Initial check
 
     return () => {
-      container.removeEventListener('scroll', handleScroll);
+      container.removeEventListener('scroll', scrollListener);
+      cancelAnimationFrame(rafId);
     };
   }, [handleScroll]);
 
-  // ----------------
-  // RENDER
-  // ----------------
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
       <div className="py-8 px-4">
@@ -178,19 +171,15 @@ const VirtualTableList = () => {
           Weapons Shop History
         </h1>
 
-        {/* Outer scroll container */}
         <div
           ref={containerRef}
-          className="h-[calc(100vh-12rem)] overflow-y-auto rounded-xl bg-white/50 backdrop-blur-sm shadow-inner relative"
+          className="h-[calc(100vh-9rem)] overflow-y-auto rounded-xl bg-white/50 backdrop-blur-sm shadow-inner relative"
         >
-          {/* The big absolute container that’s as tall as all items combined */}
           <div
             className="relative"
             style={{ height: `${totalHeight}px` }}
           >
-            {/* Render a div for each date so we can measure it.
-                Only mount <TableCard> if the item is in visibleDates. */}
-            {positions.map(({ date, top, bottom }) => {
+            {positions.map(({ date, top }) => {
               const isVisible = visibleDates.includes(date);
               return (
                 <div
@@ -201,21 +190,18 @@ const VirtualTableList = () => {
                     top: `${top}px`,
                     left: 0,
                     right: 0,
+                    visibility: isVisible ? 'visible' : 'hidden', // Use visibility instead of conditional rendering
                   }}
                 >
-                  {/* Only render if within scroll window, to keep DOM small */}
-                  {isVisible && (
-                    <TableCard
-                      date={date}
-                      data={weaponsData[date] || []}
-                    />
-                  )}
+                  <TableCard
+                    date={date}
+                    data={weaponsData[date] || []}
+                  />
                 </div>
               );
             })}
           </div>
 
-          {/* Loading indicator */}
           {loading && (
             <div className="text-center py-8 sticky bottom-0 bg-white/50 backdrop-blur-sm">
               <div

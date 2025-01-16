@@ -4,88 +4,118 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import WeaponDataFetcher from './fetcher.js';
 
-dotenv.config();
+const environment = process.env.NODE_ENV || 'development';
+const envFilePath = `.env.${environment}`;
+
+dotenv.config({ path: envFilePath });
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Initialize database tables
 // Create SQLite database connection
 const db = new sqlite3.Database('./weapons.db', (err) => {
-    if (err) {
-        console.error('Error opening database:', err);
-    } else {
-        console.log('Connected to SQLite database');
-        initializeDatabase();
-        initializeDataFetcher();
-    }
+  if (err) {
+      console.error('Error opening database:', err);
+  } else {
+      console.log('Connected to SQLite database');
+      // Initialize database first, then start the fetcher
+      initializeDatabase(() => {
+          initializeDataFetcher();
+      });
+  }
 });
 
-// Initialize database tables
-function initializeDatabase() {
-    db.serialize(() => {
-        // Enable foreign key enforcement before creating tables
-        db.run('PRAGMA foreign_keys = ON');
+// Initialize database tables with callback
+function initializeDatabase(callback) {
+  db.serialize(() => {
+      db.run('PRAGMA foreign_keys = ON');
 
-        // Create WeaponSnapshots table
-        db.run(`
-            CREATE TABLE IF NOT EXISTS WeaponSnapshots (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                snapshot_date DATE NOT NULL UNIQUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
+      db.run(`
+          CREATE TABLE IF NOT EXISTS WeaponSnapshots (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              snapshot_date DATE NOT NULL,
+              snapshot_time TIMESTAMP NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE(snapshot_date)
+          )
+      `, (err) => {
+          if (err) {
+              console.error('Error creating WeaponSnapshots table:', err);
+              return;
+          }
+      });
 
-        // Create Weapons table with foreign key and uniqueness constraints
-        db.run(`
-            CREATE TABLE IF NOT EXISTS Weapons (
-                id INTEGER NOT NULL,
-                snapshot_id INTEGER NOT NULL,
-                price TEXT NOT NULL,
-                type TEXT NOT NULL,
-                name TEXT NOT NULL,
-                damage TEXT NOT NULL,
-                durability TEXT NOT NULL,
-                element TEXT NOT NULL,
-                req_level INTEGER NOT NULL,
-                FOREIGN KEY (snapshot_id) REFERENCES WeaponSnapshots(id),
-                UNIQUE (id, snapshot_id)
-            )
-        `);
-    });
+      db.run(`
+          CREATE TABLE IF NOT EXISTS Weapons (
+              id INTEGER NOT NULL,
+              snapshot_id INTEGER NOT NULL,
+              price TEXT NOT NULL,
+              type TEXT NOT NULL,
+              name TEXT NOT NULL,
+              damage TEXT NOT NULL,
+              durability TEXT NOT NULL,
+              element TEXT NOT NULL,
+              req_level INTEGER NOT NULL,
+              FOREIGN KEY (snapshot_id) REFERENCES WeaponSnapshots(id),
+              UNIQUE (id, snapshot_id)
+          )
+      `, (err) => {
+          if (err) {
+              console.error('Error creating Weapons table:', err);
+              return;
+          }
+
+          if (callback) callback();
+      });
+  });
 }
 
 function initializeDataFetcher() {
-    const weaponFetcher = new WeaponDataFetcher(db);
+  const weaponFetcher = new WeaponDataFetcher(db);
 
-    // Run initial fetch
-    weaponFetcher.runDailyUpdate();
+  const now = new Date();
+  const currentDate = now.toISOString().split('T')[0];
 
-    // Schedule daily updates at midnight
-    const scheduleNextUpdate = () => {
-        const now = new Date();
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(0, 0, 0, 0);
-        
-        const timeUntilNextUpdate = tomorrow - now;
-        setTimeout(() => {
-            weaponFetcher.runDailyUpdate();
-            // Schedule next update
-            scheduleNextUpdate();
-        }, timeUntilNextUpdate);
-    };
+  db.get(
+      'SELECT snapshot_date FROM WeaponSnapshots WHERE snapshot_date = ?',
+      [currentDate],
+      async (err, row) => {
+          if (err) {
+              console.error('Error checking for today\'s snapshot:', err);
+              return;
+          }
 
-    // Start the scheduling
-    scheduleNextUpdate();
+          if (!row) {
+              try {
+                  await weaponFetcher.runDailyUpdate();
+                  console.log('Initial fetch completed successfully');
+              } catch (error) {
+                  console.error('Error during initial fetch:', error);
+              }
+          }
+      }
+  );
 
-    const now = new Date();
-    const lastUpdate = new Date();
-    lastUpdate.setHours(0, 0, 0, 0);
-    const hasUpdatedToday = false;
-    if (now > lastUpdate && !hasUpdatedToday) {
-        weaponFetcher.runDailyUpdate();
-    }
+  // Set up recurring check every 15 minutes
+  const CHECK_INTERVAL = 15 * 60 * 1000; // 15 minutes in milliseconds
+  let lastUpdateDate = currentDate;
+
+  setInterval(async () => {
+      const now = new Date();
+      const todayDate = now.toISOString().split('T')[0];
+
+      if (todayDate !== lastUpdateDate) {
+          try {
+              await weaponFetcher.runDailyUpdate();
+              lastUpdateDate = todayDate;
+              console.log(`Daily update completed for ${todayDate}`);
+          } catch (error) {
+              console.error('Error during scheduled update:', error);
+          }
+      }
+  }, CHECK_INTERVAL);
 }
 
 
@@ -117,22 +147,25 @@ app.get('/api/weapons/:date', (req, res) => {
 
 // GET request to retrieve all available dates
 app.get('/api/dates', (req, res) => {
-   console.log('GET /api/dates');
+  console.log('GET /api/dates');
   db.all(
-    `
-        SELECT snapshot_date 
-        FROM WeaponSnapshots 
-        ORDER BY snapshot_date DESC
-    `,
-    [],
-    (err, rows) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        console.log('ERROR GET /api/dates: ', err.message);
-        return;
+      `
+      SELECT 
+          snapshot_date,
+          snapshot_time,
+          strftime('%H:%M', snapshot_time) as capture_time
+      FROM WeaponSnapshots 
+      ORDER BY snapshot_date DESC, snapshot_time DESC
+      `,
+      [],
+      (err, rows) => {
+          if (err) {
+              res.status(500).json({ error: err.message });
+              console.log('ERROR GET /api/dates: ', err.message);
+              return;
+          }
+          res.json(rows);
       }
-        res.json(rows);
-    }
   );
 });
 
