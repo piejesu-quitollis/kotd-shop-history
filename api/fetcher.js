@@ -13,7 +13,7 @@ class WeaponDataFetcher {
             password: process.env.REDDIT_PASSWORD,
         });
 
-        this.postId = '167tvm4'; // Replace with the constant Reddit post ID
+        this.postId = process.env.REDDIT_KOTD_SHOP_ID;
     }
 
     async fetchWeaponsData() {
