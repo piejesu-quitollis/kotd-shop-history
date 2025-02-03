@@ -3,28 +3,28 @@ import React from 'react';
 const TableCard = ({ data, date }) => {
   const getElementBadgeClass = (element) => {
     const badgeClasses = {
-      'Blessed': 'text-bg-warning',
-      'Cursed': 'text-bg-dark',
-      'Synthetic': 'text-bg-info',
-      'Air': 'text-bg-info',
-      'Sun': 'text-bg-warning',
-      'Moon': 'text-bg-primary',
-      'Earth': 'text-bg-secondary',
-      'Fire': 'text-bg-danger',
-      'Water': 'text-bg-primary',
-      'Organic': 'text-bg-success'
+      'Blessed': 'bg-warning',
+      'Cursed': 'bg-dark',
+      'Synthetic': 'bg-info',
+      'Air': 'bg-info',
+      'Sun': 'bg-warning',
+      'Moon': 'bg-primary',
+      'Earth': 'bg-secondary',
+      'Fire': 'bg-danger',
+      'Water': 'bg-primary',
+      'Organic': 'bg-success'
     };
-    return `badge ${badgeClasses[element] || 'text-bg-secondary'}`;
+    return `badge ${badgeClasses[element] || 'bg-secondary'}`;
   };
 
   return (
-    <div className="card shadow mb-4">
+    <div className="card shadow-sm mx-3 mb-4">
       <div className="card-header bg-primary text-white">
-        <h3 className="mb-0">Shop: {date}</h3>
+        <h5 className="card-title mb-0">Shop: {date}</h5>
       </div>
-      <div className="card-body">
+      <div className="card-body p-0">
         <div className="table-responsive">
-          <table className="table table-hover">
+          <table className="table table-hover table-striped mb-0">
             <thead>
               <tr>
                 <th>Price</th>
@@ -40,13 +40,17 @@ const TableCard = ({ data, date }) => {
             <tbody>
               {data.map((weapon) => (
                 <tr key={weapon.id}>
-                  <td>${weapon.price}</td>
+                  <td>{weapon.price}</td>
                   <td>{weapon.id}</td>
                   <td>{weapon.type}</td>
                   <td><strong>{weapon.name}</strong></td>
                   <td>{weapon.damage}</td>
                   <td>{weapon.durability}</td>
-                  <td><span className={getElementBadgeClass(weapon.element)}>{weapon.element}</span></td>
+                  <td>
+                    <span className={getElementBadgeClass(weapon.element)}>
+                      {weapon.element}
+                    </span>
+                  </td>
                   <td>{weapon.req_level}</td>
                 </tr>
               ))}

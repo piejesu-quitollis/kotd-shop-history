@@ -1,18 +1,22 @@
 {
-  "name": "kotd-shop-history-v2",
+  "name": "kotd-shop-history",
   "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
+  "workspaces": [
+    "client",
+    "functions"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "client": "npm run start --workspace=client",
+    "functions": "npm run serve --workspace=functions",
+    "build": "npm run build --workspace=client",
+    "deploy:functions": "npm run deploy --workspace=functions",
+    "deploy": "npm run build --workspace=client && firebase deploy --only hosting"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "devDependencies": {
     "firebase-tools": "^13.29.3"
   },
   "dependencies": {
-    "kotd-shop-history-v2": "file:"
+    "kotd-shop-history": "file:"
   }
 }

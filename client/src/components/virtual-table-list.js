@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import TableCard from './TableCard';
+import TableCard from './table-card';
 import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 
@@ -19,29 +19,29 @@ function VirtualTableList() {
     // Add buffer zones for smoother scrolling
   const BUFFER_SIZE = 500; // pixels to add above and below viewport
     
-    const fetchDates = async () => {
-        try {
-            const getAvailableDatesFunction = httpsCallable(functions, "getAvailableDates");
-            const result = await getAvailableDatesFunction();
-            return result.data.map((d) => d.snapshot_date);
-        } catch (error) {
-            console.error('Error fetching dates:', error);
-            setError(error.message);
-            return [];
-        }
-    };
+  const fetchDates = async () => {
+    try {
+      const getAllDatesFunction = httpsCallable(functions, 'getAllDates');
+      const result = await getAllDatesFunction();
+      return result.data.map((d) => d.snapshot_date);
+    } catch (error) {
+      console.error('Error fetching dates:', error);
+      setError(error.message);
+      return [];
+    }
+  };
 
-    const fetchWeaponsForDate = async (date) => {
-      try {
-        const getWeaponsByDateFunction = httpsCallable(functions, "getWeaponsByDate");
-          const result = await getWeaponsByDateFunction({date: date});
-          return result.data;
-      } catch (error) {
-          console.error(`Error fetching weapons for date ${date}:`, error.message);
-          setError(error.message);
-          return [];
-      }
-    };
+  const fetchWeaponsForDate = async (date) => {
+    try {
+      const getWeaponsByDateFunction = httpsCallable(functions, 'getWeaponsByDate');
+      const result = await getWeaponsByDateFunction({ date });
+      return result.data;
+    } catch (error) {
+      console.error(`Error fetching weapons for date ${date}:`, error);
+      setError(error.message);
+      return [];
+    }
+  };
     
     const fetchData = async () => {
         setLoading(true);
@@ -66,7 +66,7 @@ function VirtualTableList() {
     
     useEffect(() => {
         fetchData();
-    });
+    }, []);
     
     // Initialize positions with proper spacing
     useEffect(() => {
@@ -209,92 +209,93 @@ function VirtualTableList() {
         } finally{
           setLoading(false)
       }
+  };
 
- };
-
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
-        <div className="py-8 px-4">
-          <h1 className="text-4xl font-bold text-gray-800 mb-8 text-center">
+  return (
+    <div className="container-fluid vh-100 bg-light">
+      <div className="py-4">
+        <h1 className="display-4 text-center mb-4">
           Weapons Shop History
-          </h1>
-        
-            <div className="flex justify-center mb-4">
-                <label htmlFor="date-select" className="mr-2 text-sm font-medium text-gray-900 dark:text-white">
-                    Select Date:
-                  </label>
-               <select
-                 id="date-select"
-                  value={selectedDate}
-                    onChange={handleDateChange}
-                    className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
-                      <option value="">-- Select a date --</option>
-                       {dates.map((date) => (
-                           <option
-                               key={date}
-                            value={date}
-                           >
-                             {date}
-                            </option>
-                            ))}
-              </select>
-           
-              <button 
-              onClick={handleRefresh}
-                className="ml-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                  disabled={loading}
-                  >
-                  {loading ? 'Fetching...' : 'Refresh Data'}
-                 </button>
+        </h1>
+      
+        <div className="d-flex justify-content-center align-items-center mb-3">
+          <label htmlFor="date-select" className="me-2 form-label">
+            Select Date:
+          </label>
+          <select
+            id="date-select"
+            value={selectedDate}
+            onChange={handleDateChange}
+            className="form-select me-2"
+            style={{ width: 'auto' }}
+          >
+            <option value="">-- Select a date --</option>
+            {dates.map((date) => (
+              <option key={date} value={date}>
+                {date}
+              </option>
+            ))}
+          </select>
+      
+          <button 
+            onClick={handleRefresh}
+            className="btn btn-primary"
+            disabled={loading}
+          >
+            {loading ? 'Fetching...' : 'Refresh Data'}
+          </button>
         </div>
-          <div className="px-2 pb-2">
-            {error && <p className="text-red-500">{error}</p>}
+
+        {error && (
+          <div className="alert alert-danger text-center" role="alert">
+            {error}
           </div>
+        )}
+
         <div
           ref={containerRef}
-          className="h-[calc(100vh-9rem)] overflow-y-auto rounded-xl bg-white/50 backdrop-blur-sm shadow-inner relative"
-            >
-            <div
-            className="relative"
-              style={{ height: `${totalHeight}px` }}
-              >
-                  {positions.map(({ date, top }) => {
-                      const isVisible = visibleDates.includes(date);
-                      return (
-                  <div
-                          key={date}
-                           ref={(el) => (cardRefs.current[date] = el)}
-                            style={{
-                                position: 'absolute',
-                                top: `${top}px`,
-                                left: 0,
-                                  right: 0,
-                                visibility: isVisible ? 'visible' : 'hidden',
-                             }}
-                    >
-                       <TableCard
-                             date={date}
-                               data={data[date] || []}
-                            />
+          className="position-relative overflow-auto"
+          style={{ height: 'calc(100vh - 200px)' }}
+        >
+          <div
+            className="position-relative"
+            style={{ height: `${totalHeight}px` }}
+          >
+            {positions.map(({ date, top }) => {
+              const isVisible = visibleDates.includes(date);
+              return (
+                <div
+                  key={date}
+                  ref={(el) => (cardRefs.current[date] = el)}
+                  style={{
+                    position: 'absolute',
+                    top: `${top}px`,
+                    left: 0,
+                    right: 0,
+                    visibility: isVisible ? 'visible' : 'hidden',
+                  }}
+                >
+                  <TableCard
+                    date={date}
+                    data={data[date] || []}
+                  />
                 </div>
-                   );
-                 })}
+              );
+            })}
+          </div>
+          
+          {loading && (
+            <div className="position-sticky bottom-0 text-center py-3 bg-white bg-opacity-75">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <p className="mt-2 text-muted">Loading more data...</p>
             </div>
-            {loading && (
-               <div className="text-center py-8 sticky bottom-0 bg-white/50 backdrop-blur-sm">
-                  <div
-                    className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-500 border-r-transparent align-[-0.125em]"
-                    role="status"
-                  >
-                <span className="hidden">Loading...</span>
-                  </div>
-                    <p className="mt-4 text-gray-600 font-medium">Loading more data...</p>
-               </div>
-                  )}
-            </div>
+          )}
+        </div>
       </div>
-     </div>
-    );
-};
+    </div>
+  );
+}
 
 export default VirtualTableList;

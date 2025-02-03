@@ -1,5 +1,5 @@
 import './App.css';
-import VirtualTableList from './components/VirtualTableList';
+import VirtualTableList from './components/virtual-table-list';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
