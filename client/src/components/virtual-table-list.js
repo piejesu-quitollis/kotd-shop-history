@@ -188,28 +188,21 @@ function VirtualTableList() {
         fetchDataForDate(newDate)
     };
     
-    const handleRefresh = async () => {
-      setLoading(true)
-       setError('');
-       try {
-           const triggerUpdateFunction = httpsCallable(functions, "triggerUpdate");
-            const updateData = await triggerUpdateFunction()
-             if(updateData.data.message === 'Data saved successfully' ||
-                updateData.data.message === 'Update triggered successfully') {
-                    await fetchData();
-                setSelectedDate('');
-              setData({});
-              }
-                else {
-             setError('Failed to fetch data')
-           }
-        } catch (err) {
-          console.error('Failed to fetch data.', err.message)
-          setError('Failed to fetch data')
-        } finally{
-          setLoading(false)
+  const handleRefresh = async () => {
+      setLoading(true);
+      setError('');
+      try {
+          await fetchData(); // Fetch new data instead of calling a missing function
+          setSelectedDate('');
+          setData({});
+      } catch (err) {
+          console.error('Failed to fetch data.', err.message);
+          setError('Failed to fetch data');
+      } finally {
+          setLoading(false);
       }
   };
+  
 
   return (
     <div className="container-fluid vh-100 bg-light">
