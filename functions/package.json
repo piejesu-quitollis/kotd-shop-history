@@ -1,0 +1,27 @@
+{
+  "name": "functions",
+  "description": "Cloud Functions for Firebase",
+  "scripts": {
+    "watch": "nodemon --watch . -e js --exec \"npm run serve\"",
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.3.1",
+    "functions": "file:",
+    "snoowrap": "^1.23.0"
+  },
+  "devDependencies": {
+    "firebase-functions-test": "^3.1.0",
+    "nodemon": "^3.1.9"
+  },
+  "private": true
+}
