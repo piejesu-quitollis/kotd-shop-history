@@ -19,54 +19,54 @@ function VirtualTableList() {
     // Add buffer zones for smoother scrolling
   const BUFFER_SIZE = 500; // pixels to add above and below viewport
     
-  const fetchDates = async () => {
-    try {
-      const getAllDatesFunction = httpsCallable(functions, 'getAllDates');
-      const result = await getAllDatesFunction();
-      return result.data.map((d) => d.snapshot_date);
-    } catch (error) {
-      console.error('Error fetching dates:', error);
-      setError(error.message);
-      return [];
-    }
-  };
-
-  const fetchWeaponsForDate = async (date) => {
-    try {
-      const getWeaponsByDateFunction = httpsCallable(functions, 'getWeaponsByDate');
-      const result = await getWeaponsByDateFunction({ date });
-      return result.data;
-    } catch (error) {
-      console.error(`Error fetching weapons for date ${date}:`, error);
-      setError(error.message);
-      return [];
-    }
-  };
-    
-    const fetchData = async () => {
-        setLoading(true);
-        setError('');
+  const fetchDates = useCallback(async () => {
       try {
-        const fetchedDates = await fetchDates();
-        setDates(fetchedDates);
-        
+          const getAllDatesFunction = httpsCallable(functions, 'getAllDates');
+          const result = await getAllDatesFunction();
+          return result.data.map((d) => d.snapshot_date);
+      } catch (error) {
+          console.error('Error fetching dates:', error);
+          setError(error.message);
+          return [];
+      }
+  }, []);
+
+  const fetchWeaponsForDate = useCallback(async (date) => {
+      try {
+          const getWeaponsByDateFunction = httpsCallable(functions, 'getWeaponsByDate');
+          const result = await getWeaponsByDateFunction({ date });
+          return result.data;
+      } catch (error) {
+          console.error(`Error fetching weapons for date ${date}:`, error);
+          setError(error.message);
+          return [];
+      }
+  }, []);
+    
+  const fetchData = useCallback(async () => {
+      setLoading(true);
+      setError('');
+      try {
+          const fetchedDates = await fetchDates();
+          setDates(fetchedDates);
+          
           const data = {};
-            for (const date of fetchedDates) {
-               const weapons = await fetchWeaponsForDate(date);
-                data[date] = weapons;
+          for (const date of fetchedDates) {
+              const weapons = await fetchWeaponsForDate(date);
+              data[date] = weapons;
           }
           setData(data);
-        } catch (error) {
-         console.error('Error fetching data:', error);
-            setError(error.message);
-        } finally {
+      } catch (error) {
+          console.error('Error fetching data:', error);
+          setError(error.message);
+      } finally {
           setLoading(false);
-        }
-    };
+      }
+  }, [fetchDates, fetchWeaponsForDate]);
     
-    useEffect(() => {
-        fetchData();
-    }, []);
+  useEffect(() => {
+      fetchData();
+  }, [fetchData]);
     
     // Initialize positions with proper spacing
     useEffect(() => {
