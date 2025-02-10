@@ -23,6 +23,7 @@ function VirtualTableList() {
     try {
         const getAllDatesFunction = httpsCallable(functions, 'getAllDates');
         const result = await getAllDatesFunction();
+        console.log('Result from getAllDates:', result); 
         return result.data.map((d) => d.snapshot_date);
     } catch (error) {
         console.error('Error fetching dates:', error);
@@ -35,6 +36,7 @@ const fetchWeaponsForDate = useCallback(async (date) => {
   try {
       const getWeaponsByDateFunction = httpsCallable(functions, 'getWeaponsByDate');
       const result = await getWeaponsByDateFunction({ date });
+      console.log('Result from getWeaponsByDate:', result); 
       return result.data;
   } catch (error) {
       console.error(`Error fetching weapons for date ${date}:`, error);

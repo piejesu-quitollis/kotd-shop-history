@@ -63,15 +63,14 @@ exports.getWeaponsByDate = onCall(async (request) => {
 /**
  * Get all snapshot dates
  */
-exports.getAllDates = onCall(async () => {
+exports.getAllDates = onCall(async () => {    
     try {
         const querySnapshot = await db
             .collection("weaponSnapshots")
-            .orderBy("snapshot_date", "desc")
             .orderBy("snapshot_time", "desc")
             .get();
 
-        return querySnapshot.docs.map((doc) => {
+        const dates = querySnapshot.docs.map((doc) => {
             const data = doc.data();
             return {
                 snapshot_date: data.snapshot_date,
@@ -79,6 +78,9 @@ exports.getAllDates = onCall(async () => {
                 capture_time: data.snapshot_time.substring(11, 16),
             };
         });
+
+        console.log('getAllDates returning:', dates.length, 'dates'); // Debug log
+        return { data: dates }; // Wrap in data object
     } catch (error) {
         console.error("Error fetching dates:", error);
         throw new Error(error.message);
