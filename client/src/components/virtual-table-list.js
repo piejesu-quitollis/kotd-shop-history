@@ -20,28 +20,36 @@ function VirtualTableList() {
   const BUFFER_SIZE = 500; // pixels to add above and below viewport
     
   const fetchDates = useCallback(async () => {
-      try {
-          const getAllDatesFunction = httpsCallable(functions, 'getAllDates');
-          const result = await getAllDatesFunction();
-          return result.data.map((d) => d.snapshot_date);
-      } catch (error) {
-          console.error('Error fetching dates:', error);
-          setError(error.message);
-          return [];
-      }
-  }, []);
+    try {
+        const baseUrl = functions.url; // This gets the base URL for your functions
+        const response = await fetch(`${baseUrl}/getAllDates`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        return result.map((d) => d.snapshot_date);
+    } catch (error) {
+        console.error('Error fetching dates:', error);
+        setError(error.message);
+        return [];
+    }
+}, []);
 
-  const fetchWeaponsForDate = useCallback(async (date) => {
-      try {
-          const getWeaponsByDateFunction = httpsCallable(functions, 'getWeaponsByDate');
-          const result = await getWeaponsByDateFunction({ date });
-          return result.data;
-      } catch (error) {
-          console.error(`Error fetching weapons for date ${date}:`, error);
-          setError(error.message);
-          return [];
-      }
-  }, []);
+const fetchWeaponsForDate = useCallback(async (date) => {
+    try {
+        const baseUrl = functions.url;
+        const response = await fetch(`${baseUrl}/getWeaponsByDate?date=${date}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        return result;
+    } catch (error) {
+        console.error(`Error fetching weapons for date ${date}:`, error);
+        setError(error.message);
+        return [];
+    }
+}, []);
     
   const fetchData = useCallback(async () => {
       setLoading(true);

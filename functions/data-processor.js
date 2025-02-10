@@ -1,6 +1,12 @@
 const Snoowrap = require('snoowrap');
 const { parseWeaponsData, WeaponDataError } = require('./data-parser.js');
-const functions = require('firebase-functions');
+const { defineString } = require('firebase-functions/params');
+
+const clientId = defineString('REDDIT_CLIENT_ID');
+const clientSecret = defineString('REDDIT_CLIENT_SECRET');
+const username = defineString('REDDIT_USERNAME');
+const password = defineString('REDDIT_PASSWORD');
+const postId = defineString('REDDIT_POST_ID');
 
 class DataProcessor {
     #reddit = null;
@@ -13,15 +19,23 @@ class DataProcessor {
 
     initializeReddit() {
         if (this.#reddit) return;
-        const config = functions.config().reddit;
+
+        console.log('Environment variables check:', {
+            clientId: clientId.value(),
+            clientSecret: clientSecret.value(),
+            username: username.value(),
+            password: password.value(),
+            postId: postId.value()
+        });
+
         this.#reddit = new Snoowrap({
             userAgent: 'WeaponDataFetcherBot',
-            clientId: config.client_id ?? process.env.REDDIT_CLIENT_ID,
-            clientSecret: config.client_secret ?? process.env.REDDIT_CLIENT_SECRET,
-            username: config.username ?? process.env.REDDIT_USERNAME,
-            password: config.password ?? process.env.REDDIT_PASSWORD
+            clientId: clientId.value(),
+            clientSecret: clientSecret.value(),
+            username: username.value(),
+            password: password.value()
         });
-        this.#postId = config.post_id ?? process.env.REDDIT_POST_ID;
+        this.#postId = postId.value();
     }
 
     async fetchWeaponsData() {
