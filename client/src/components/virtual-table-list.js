@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import TableCard from './table-card';
 import { functions } from '../firebase';
-import { httpsCallable } from 'firebase/functions';
 
 
 function VirtualTableList() {
