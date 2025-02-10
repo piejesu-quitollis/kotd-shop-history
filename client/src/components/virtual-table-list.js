@@ -22,7 +22,7 @@ function VirtualTableList() {
   const fetchDates = useCallback(async () => {
     try {
         const getAllDatesFunction = httpsCallable(functions, 'getAllDates');
-        const result = await getAllDatesFunction();
+        const result = await getAllDatesFunction({ data:{} });
         console.log('Result from getAllDates:', result); 
         return result.data.map((d) => d.snapshot_date);
     } catch (error) {
@@ -35,7 +35,7 @@ function VirtualTableList() {
 const fetchWeaponsForDate = useCallback(async (date) => {
   try {
       const getWeaponsByDateFunction = httpsCallable(functions, 'getWeaponsByDate');
-      const result = await getWeaponsByDateFunction({ date });
+      const result = await getWeaponsByDateFunction({ data: {date} });
       console.log('Result from getWeaponsByDate:', result); 
       return result.data;
   } catch (error) {
