@@ -51,7 +51,7 @@ const TableCard = ({ data, date }) => {
                       {weapon.element}
                     </span>
                   </td>
-                  <td>{weapon.req_level}</td>
+                  <td>{weapon.req_level != null ? weapon.req_level : '-'}</td>
                 </tr>
               ))}
             </tbody>

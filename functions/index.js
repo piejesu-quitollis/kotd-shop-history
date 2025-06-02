@@ -1,9 +1,11 @@
 const { setGlobalOptions } = require("firebase-functions/v2");
-const { onCall } = require("firebase-functions/v2/https");
+const { onRequest, onCall } = require("firebase-functions/v2/https"); // Re-add onCall
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const cors = require('cors')({origin: true});
 const { getFirestore } = require("firebase-admin/firestore");
 const { initializeApp } = require("firebase-admin/app");
 const { DataProcessor } = require("./data-processor");
+// const { onCall } = require("firebase-functions/v2/https"); // Keep onCall for manualUpdate - remove this duplicate
 
 setGlobalOptions({
     maxInstances: 10,
@@ -37,54 +39,60 @@ exports.scheduledUpdate = onSchedule(
 /**
  * Get weapons by date
  */
-exports.getWeaponsByDate = onCall(async (request) => {
-    const { date } = request.data;
-    if (!date) {
-        throw new Error('Missing "date" parameter');
-    }
-
-    try {
-        const snapshotRef = db.collection("weaponSnapshots").doc(date);
-        const snapshot = await snapshotRef.get();
-
-        if (!snapshot.exists) {
-            throw new Error("No data found for that date");
+exports.getWeaponsByDate = onRequest(async (req, res) => {
+    cors(req, res, async () => {
+        const { date } = req.body.data || {}; // Adjusted to req.body.data
+        if (!date) {
+            res.status(400).json({ error: 'Missing "date" parameter' });
+            return;
         }
 
-        const weaponsRef = snapshotRef.collection("weapons");
-        const querySnapshot = await weaponsRef.get();
-        return querySnapshot.docs.map((doc) => doc.data());
-    } catch (error) {
-        console.error("Error fetching weapons:", error);
-        throw new Error(error.message);
-    }
+        try {
+            const snapshotRef = db.collection("weaponSnapshots").doc(date);
+            const snapshot = await snapshotRef.get();
+
+            if (!snapshot.exists) {
+                res.status(404).json({ error: "No data found for that date" }); // Adjusted error handling
+                return;
+            }
+
+            const weaponsRef = snapshotRef.collection("weapons");
+            const querySnapshot = await weaponsRef.get();
+            res.json({ data: querySnapshot.docs.map((doc) => doc.data()) }); // Adjusted response
+        } catch (error) {
+            console.error("Error fetching weapons:", error);
+            res.status(500).json({ error: error.message }); // Adjusted error handling
+        }
+    });
 });
 
 /**
  * Get all snapshot dates
  */
-exports.getAllDates = onCall(async () => {    
-    try {
-        const querySnapshot = await db
-            .collection("weaponSnapshots")
-            .orderBy("snapshot_time", "desc")
-            .get();
+exports.getAllDates = onRequest(async (req, res) => {
+    cors(req, res, async () => {
+        try {
+            const querySnapshot = await db
+                .collection("weaponSnapshots")
+                .orderBy("snapshot_time", "desc")
+                .get();
 
-        const dates = querySnapshot.docs.map((doc) => {
-            const data = doc.data();
-            return {
-                snapshot_date: data.snapshot_date,
-                snapshot_time: data.snapshot_time,
-                capture_time: data.snapshot_time.substring(11, 16),
-            };
-        });
+            const dates = querySnapshot.docs.map((doc) => {
+                const data = doc.data();
+                return {
+                    snapshot_date: data.snapshot_date,
+                    snapshot_time: data.snapshot_time,
+                    capture_time: data.snapshot_time.substring(11, 16),
+                };
+            });
 
-        console.log('getAllDates returning:', dates.length, 'dates'); // Debug log
-        return { data: dates }; // Wrap in data object
-    } catch (error) {
-        console.error("Error fetching dates:", error);
-        throw new Error(error.message);
-    }
+            console.log('getAllDates returning:', dates.length, 'dates');
+            res.json({ data: dates }); // Adjusted response
+        } catch (error) {
+            console.error("Error fetching dates:", error);
+            res.status(500).json({ error: error.message }); // Adjusted error handling
+        }
+    });
 });
 
 /**

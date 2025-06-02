@@ -17,7 +17,7 @@ const parseWeaponsData = (rawText) => {
 };
 
 const parseWeapons = (rawText) => {
-    const WEAPONS_REGEX = /#Items:\n[\s\S]*?\|Price\|ID\|Type\|Name\|Damage\|Durability\|Element\|Req Lv\.\|([\s\S]*?)\n# Canteen:/;
+    const WEAPONS_REGEX = /#Items:\n[\s\S]*?\|Price\|ID\|Type\|Name\|Damage\|Durability\|Element\|(?:Req Lv\.\|)?([\s\S]*?)\n# Canteen:/;
     const weapons = rawText.match(WEAPONS_REGEX)?.[1]
         ?.trim()
         .split('\n')
@@ -31,19 +31,34 @@ const parseWeapons = (rawText) => {
 
 const parseWeaponLine = (line) => {
     const fields = line.replace(/^\||\|$/g, '').split('|').map(item => item.trim());
-    if (fields.length !== 8) return null;
     
-    const [price, id, type, name, damage, durability, element, reqLevel] = fields;
-    return {
-        id: parseInt(id, 10),
-        price,
-        type,
-        name,
-        damage,
-        durability,
-        element,
-        reqLevel: parseInt(reqLevel, 10)
-    };
+    if (fields.length === 7) {
+        const [price, id, type, name, damage, durability, element] = fields;
+        return {
+            id: parseInt(id, 10),
+            price,
+            type,
+            name,
+            damage,
+            durability,
+            element,
+            reqLevel: null
+        };
+    } else if (fields.length === 8) {
+        const [price, id, type, name, damage, durability, element, reqLevelStr] = fields;
+        return {
+            id: parseInt(id, 10),
+            price,
+            type,
+            name,
+            damage,
+            durability,
+            element,
+            reqLevel: parseInt(reqLevelStr, 10)
+        };
+    } else {
+        return null;
+    }
 };
 
 module.exports = { 

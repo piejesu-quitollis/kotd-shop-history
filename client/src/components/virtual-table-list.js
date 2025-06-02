@@ -1,7 +1,6 @@
-import { httpsCallable } from 'firebase/functions';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import TableCard from './table-card';
-import { functions } from '../firebase';
+// import { functions } from '../firebase'; // Removed
 
 
 function VirtualTableList() {
@@ -19,31 +18,49 @@ function VirtualTableList() {
     // Add buffer zones for smoother scrolling
   const BUFFER_SIZE = 500; // pixels to add above and below viewport
     
+  const FUNCTION_BASE_URL = 'https://europe-west1-kotd-shop-history.cloudfunctions.net';
+
   const fetchDates = useCallback(async () => {
     try {
-        const getAllDatesFunction = httpsCallable(functions, 'getAllDates');
-        const result = await getAllDatesFunction({ data:{} });
-        console.log('Result from getAllDates:', result); 
+        const response = await fetch(`${FUNCTION_BASE_URL}/getAllDates`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}), // Sending empty JSON object as body
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Server error: ${response.status}`);
+        }
+        const result = await response.json();
+        console.log('Result from getAllDates:', result);
         return result.data.map((d) => d.snapshot_date);
     } catch (error) {
         console.error('Error fetching dates:', error);
-        setError(error.message);
+        setError(error.message || 'Failed to fetch dates');
         return [];
     }
-}, []);
+  }, []);
 
-const fetchWeaponsForDate = useCallback(async (date) => {
-  try {
-      const getWeaponsByDateFunction = httpsCallable(functions, 'getWeaponsByDate');
-      const result = await getWeaponsByDateFunction({ data: {date} });
-      console.log('Result from getWeaponsByDate:', result); 
-      return result.data;
-  } catch (error) {
-      console.error(`Error fetching weapons for date ${date}:`, error);
-      setError(error.message);
-      return [];
-  }
-}, []);
+  const fetchWeaponsForDate = useCallback(async (date) => {
+    try {
+        const response = await fetch(`${FUNCTION_BASE_URL}/getWeaponsByDate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: { date } }),
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Server error: ${response.status}`);
+        }
+        const result = await response.json();
+        console.log('Result from getWeaponsByDate:', result);
+        return result.data;
+    } catch (error) {
+        console.error(`Error fetching weapons for date ${date}:`, error);
+        setError(error.message || `Failed to fetch weapons for ${date}`);
+        return [];
+    }
+  }, []);
     
   const fetchData = useCallback(async () => {
       setLoading(true);

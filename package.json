@@ -15,7 +15,7 @@
     "deploy": "npm run build --workspace=client && firebase deploy --only hosting"
   },
   "devDependencies": {
-    "firebase-tools": "^13.29.3"
+    "firebase-tools": "^14.0.1"
   },
   "dependencies": {
     "kotd-shop-history": "file:"
