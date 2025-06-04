@@ -1,22 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import TableCard from './table-card';
-// import { functions } from '../firebase'; // Removed
-
 
 function VirtualTableList() {
   const [data, setData] = useState({});
   const [dates, setDates] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
-  const [positions, setPositions] = useState([]);
-  const [totalHeight, setTotalHeight] = useState(0);
-  const [visibleDates, setVisibleDates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const containerRef = useRef(null);
-  const cardRefs = useRef({});
-
-    // Add buffer zones for smoother scrolling
-  const BUFFER_SIZE = 500; // pixels to add above and below viewport
     
   const FUNCTION_BASE_URL = 'https://europe-west1-kotd-shop-history.cloudfunctions.net';
 
@@ -25,7 +15,7 @@ function VirtualTableList() {
         const response = await fetch(`${FUNCTION_BASE_URL}/getAllDates`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({}), // Sending empty JSON object as body
+            body: JSON.stringify({}),
         });
         if (!response.ok) {
             const errorData = await response.json();
@@ -68,155 +58,52 @@ function VirtualTableList() {
       try {
           const fetchedDates = await fetchDates();
           setDates(fetchedDates);
-          
-          const data = {};
-          for (const date of fetchedDates) {
-              const weapons = await fetchWeaponsForDate(date);
-              data[date] = weapons;
-          }
-          setData(data);
+          setData({});
       } catch (error) {
-          console.error('Error fetching data:', error);
-          setError(error.message);
+          console.error('Error fetching initial dates:', error);
+          setError(error.message || 'Failed to fetch initial dates');
       } finally {
           setLoading(false);
       }
-  }, [fetchDates, fetchWeaponsForDate]);
+  }, [fetchDates]);
     
   useEffect(() => {
       fetchData();
   }, [fetchData]);
-    
-    // Initialize positions with proper spacing
-    useEffect(() => {
-        if (!dates.length) {
-          setPositions([]);
-            setTotalHeight(0);
-            setVisibleDates([]);
-            return;
-        }
-  
-        // Estimate initial height for better initial rendering
-      const ESTIMATED_CARD_HEIGHT = 400;
-        const initialPositions = dates.map((date, index) => ({
-          date,
-          top: index * ESTIMATED_CARD_HEIGHT,
-          bottom: (index + 1) * ESTIMATED_CARD_HEIGHT,
-      }));
-
-      setPositions(initialPositions);
-        setTotalHeight(dates.length * ESTIMATED_CARD_HEIGHT);
-    }, [dates]);
-  
-      // Measure actual heights and update positions
-      useEffect(() => {
-          if (!positions.length) return;
-      
-          // Use requestAnimationFram­e to ensure DOM is ready
-          requestAnimationFrame(() => {
-            const measuredPositions = [];
-                let runningOffset = 0;
-        
-            for (const pos of positions) {
-                 const cardEl = cardRefs.current[pos.date];
-                 if (!cardEl) {
-                   // Keep estimated height if element isn't measured yet
-                    measuredPositions.push({ ...pos });
-                 runningOffset = pos.bottom;
-                   continue;
-                }
-
-               const height = cardEl.offsetHeight;
-                const top = runningOffset;
-              const bottom = top + height;
-            runningOffset = bottom;
-          
-             measuredPositions.push({
-                date: pos.date,
-                top,
-                bottom,
-            });
-        }
-          
-          setPositions(measuredPositions);
-            if (measuredPositions.length > 0) {
-              setTotalHeight(measuredPositions[measuredPositions.length - 1].bottom);
-            }
-          });
-       }, [positions, data]);
-
-    // Improved scroll handler with buffer zones
-    const handleScroll = useCallback(() => {
-      if (!containerRef.current) return;
-      const scrollTop = containerRef.current.scrollTop;
-          const viewportHeight = containerRef.current.clientHeight;
-     
-      // Add buffer zones above and below viewport
-        const visibleTop = Math.max(0, scrollTop - BUFFER_SIZE);
-      const visibleBottom = scrollTop + viewportHeight + BUFFER_SIZE;
-
-        const inViewDates = positions
-         .filter(({ top, bottom }) => {
-            // Check if any part of the item is within the buffered viewport
-          return bottom >= visibleTop && top <= visibleBottom;
-         })
-         .map((p) => p.date);
-
-       setVisibleDates(inViewDates);
-  }, [positions]);
-
-  useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
-        
-       // Use requestAnimationFram­e for smoother scroll handling
-      let rafId;
-        const scrollListener = () => {
-            cancelAnimationFrame(rafId);
-            rafId = requestAnimationFrame(() => {
-              handleScroll();
-           });
-           };
-        
-        container.addEventListener('scroll', scrollListener, { passive: true });
-      handleScroll(); // Initial check
-
-        return () => {
-            container.removeEventListener('scroll', scrollListener);
-          cancelAnimationFrame(rafId);
-       };
-    }, [handleScroll]);
 
   const fetchDataForDate = async (date) => {
+    if (!date) return;
     setLoading(true);
-      setError('');
+    setError('');
     try {
         const weapons = await fetchWeaponsForDate(date);
         setData(prevState => ({ ...prevState, [date]: weapons }));
     } catch (error) {
         console.error(`Error fetching data for date ${date}:`, error);
-          setError(error.message);
-        } finally {
-            setLoading(false);
-        }
-   };
+        setError(error.message || `Failed to fetch data for ${date}`);
+    } finally {
+        setLoading(false);
+    }
+  };
   
   const handleDateChange = (e) => {
-        const newDate = e.target.value;
-        setSelectedDate(newDate);
-        fetchDataForDate(newDate)
-    };
+    const newDate = e.target.value;
+    setSelectedDate(newDate);
+    if (newDate) {
+        fetchDataForDate(newDate);
+    } else {
+    }
+  };
     
   const handleRefresh = async () => {
       setLoading(true);
       setError('');
       try {
-          await fetchData(); // Fetch new data instead of calling a missing function
+          await fetchData();
           setSelectedDate('');
-          setData({});
       } catch (err) {
-          console.error('Failed to fetch data.', err.message);
-          setError('Failed to fetch data');
+          console.error('Failed to refresh dates.', err.message);
+          setError('Failed to refresh dates');
       } finally {
           setLoading(false);
       }
@@ -224,7 +111,7 @@ function VirtualTableList() {
   
 
   return (
-    <div className="container-fluid vh-100 bg-light">
+    <div className="container-fluid bg-light" style={{ minHeight: '100vh' }}>
       <div className="py-4">
         <h1 className="display-4 text-center mb-4">
           Weapons Shop History
@@ -234,27 +121,21 @@ function VirtualTableList() {
           <label htmlFor="date-select" className="me-2 form-label">
             Select Date:
           </label>
-          <select
+          <input
+            type="date"
             id="date-select"
             value={selectedDate}
             onChange={handleDateChange}
             className="form-select me-2"
             style={{ width: 'auto' }}
-          >
-            <option value="">-- Select a date --</option>
-            {dates.map((date) => (
-              <option key={date} value={date}>
-                {date}
-              </option>
-            ))}
-          </select>
+          />
       
           <button 
             onClick={handleRefresh}
             className="btn btn-primary"
-            disabled={loading}
+            disabled={loading && !selectedDate}
           >
-            {loading ? 'Fetching...' : 'Refresh Data'}
+            {loading && !dates.length ? 'Fetching Dates...' : 'Refresh Dates'}
           </button>
         </div>
 
@@ -264,46 +145,43 @@ function VirtualTableList() {
           </div>
         )}
 
-        <div
-          ref={containerRef}
-          className="position-relative overflow-auto"
-          style={{ height: 'calc(100vh - 200px)' }}
-        >
-          <div
-            className="position-relative"
-            style={{ height: `${totalHeight}px` }}
-          >
-            {positions.map(({ date, top }) => {
-              const isVisible = visibleDates.includes(date);
-              return (
-                <div
-                  key={date}
-                  ref={(el) => (cardRefs.current[date] = el)}
-                  style={{
-                    position: 'absolute',
-                    top: `${top}px`,
-                    left: 0,
-                    right: 0,
-                    visibility: isVisible ? 'visible' : 'hidden',
-                  }}
-                >
-                  <TableCard
-                    date={date}
-                    data={data[date] || []}
-                  />
-                </div>
-              );
-            })}
-          </div>
-          
-          {loading && (
-            <div className="position-sticky bottom-0 text-center py-3 bg-white bg-opacity-75">
-              <div className="spinner-border text-primary" role="status">
-                <span className="visually-hidden">Loading...</span>
-              </div>
-              <p className="mt-2 text-muted">Loading more data...</p>
+        <div className="mt-4">
+          {!selectedDate && !loading && !error && (
+            <div className="alert alert-info text-center" role="alert">
+              Please select a date to view the shop history.
             </div>
           )}
+
+          {loading && selectedDate && (
+            <div className="text-center py-3">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading weapons for {selectedDate}...</span>
+              </div>
+              <p className="mt-2 text-muted">Loading weapons for {selectedDate}...</p>
+            </div>
+          )}
+
+          {!loading && selectedDate && data[selectedDate] && (
+            <TableCard
+              date={selectedDate}
+              data={data[selectedDate]}
+            />
+          )}
+
+          {!loading && selectedDate && !data[selectedDate] && !error && (
+            <div className="alert alert-warning text-center" role="alert">
+              No data available for the selected date: {selectedDate}.
+            </div>
+          )}
+          
+          {loading && !selectedDate && (
+             <div className="text-center py-3">
+               <div className="spinner-border text-secondary" role="status">
+                 <span className="visually-hidden">Loading available dates...</span>
+               </div>
+               <p className="mt-2 text-muted">Loading available dates...</p>
+             </div>
+           )}
         </div>
       </div>
     </div>
