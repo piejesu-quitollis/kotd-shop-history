@@ -1,6 +1,7 @@
 import React from 'react';
+import { getPriceChangeInfo } from '../utils/weapon-utils.js';
 
-const TableCard = ({ data, date }) => {
+const TableCard = ({ data, date, previousData }) => {
   const getElementBadgeClass = (element) => {
     const badgeClasses = {
       'Blessed': 'bg-warning',
@@ -38,9 +39,19 @@ const TableCard = ({ data, date }) => {
               </tr>
             </thead>
             <tbody>
-              {data.map((weapon) => (
+              {data.map((weapon) => {
+                const priceChangeInfo = getPriceChangeInfo(weapon, previousData);
+
+                return (
                 <tr key={weapon.id}>
-                  <td>{weapon.price}</td>
+                  <td>
+                    {weapon.price}
+                    {priceChangeInfo && (
+                      <span style={{ color: priceChangeInfo.color, marginLeft: '5px', fontSize: '0.9em' }}>
+                        ({priceChangeInfo.sign}{priceChangeInfo.amount})
+                      </span>
+                    )}
+                  </td>
                   <td>{weapon.id}</td>
                   <td>{weapon.type}</td>
                   <td><strong>{weapon.name}</strong></td>
@@ -52,8 +63,8 @@ const TableCard = ({ data, date }) => {
                     </span>
                   </td>
                   <td>{weapon.reqLevel != null ? weapon.reqLevel : '-'}</td>
-                </tr>
-              ))}
+                </tr>);
+              })}
             </tbody>
           </table>
         </div>

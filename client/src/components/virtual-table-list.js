@@ -10,74 +10,90 @@ function VirtualTableList() {
   const [data, setData] = useState({});
   const [dates, setDates] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
+  const [previousComparisonDate, setPreviousComparisonDate] = useState('');
   const [pickerDate, setPickerDate] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const fetchDates = useCallback(async () => {
-    console.log('Calling fetchDates');
     try {
-        const response = await fetch(`${FUNCTION_BASE_URL}/getAllDates`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({}),
-        });
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: `Server error: ${response.status}` }));
-            throw new Error(errorData.error || `Server error: ${response.status}`);
-        }
-        const result = await response.json();
-        return result.data.map((d) => d.snapshot_date);
+      const response = await fetch(`${FUNCTION_BASE_URL}/getAllDates`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `Server error: ${response.status}` }));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
+      const result = await response.json();
+      return result.data.map((d) => d.snapshot_date);
     } catch (err) {
-        console.error('Error fetching dates:', err);
-        setError(err.message || 'Failed to fetch dates');
-        return [];
+      console.error('Error fetching dates:', err);
+      setError(err.message || 'Failed to fetch dates');
+      return [];
     }
   }, []);
 
   const fetchWeaponsForDate = useCallback(async (date) => {
-    console.log(`Calling fetchWeaponsForDate for ${date}`);
     if (!date) return [];
     try {
-        const response = await fetch(`${FUNCTION_BASE_URL}/getWeaponsByDate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: { date } }),
-        });
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ error: `Server error: ${response.status}` }));
-            throw new Error(errorData.error || `Server error: ${response.status}`);
-        }
-        const result = await response.json();
-        return result.data;
+      const response = await fetch(`${FUNCTION_BASE_URL}/getWeaponsByDate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { date } }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: `Server error: ${response.status}` }));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
+      const result = await response.json();
+      return result.data;
     } catch (err) {
-        console.error(`Error fetching weapons for date ${date}:`, err);
-        setError(err.message || `Failed to fetch weapons for ${date}`);
-        return [];
+      console.error(`Error fetching weapons for date ${date}:`, err);
+      setError(err.message || `Failed to fetch weapons for ${date}`);
+      return [];
     }
-  }, []); 
+  }, []);
 
   const fetchDataForDate = useCallback(async (date) => {
     if (!date) return;
-    console.log(`Calling fetchDataForDate for ${date}`);
     setLoading(true);
     try {
-        let weapons = await fetchWeaponsForDate(date);
-        if (weapons && weapons.length > 0) {
-            weapons.sort((a, b) => a.id - b.id);
-        }
-        setData(prevState => ({ ...prevState, [date]: weapons || [] }));
+      let weapons = await fetchWeaponsForDate(date);
+      if (weapons && weapons.length > 0) {
+        weapons.sort((a, b) => a.id - b.id);
+      }
+      setData(prevState => ({ ...prevState, [date]: weapons || [] }));
     } catch (err) {
-
-        console.error(`Error in fetchDataForDate for date ${date}:`, err);
-        setData(prevState => ({ ...prevState, [date]: [] }));
+      console.error(`Error in fetchDataForDate for date ${date}:`, err);
+      setData(prevState => ({ ...prevState, [date]: [] }));
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   }, [fetchWeaponsForDate]);
 
+  const fetchPreviousDateDataIfNeeded = useCallback(async (currentSelectedDate, allDates, currentData) => {
+    if (!currentSelectedDate || !allDates || allDates.length === 0) {
+      setPreviousComparisonDate('');
+      return;
+    }
+
+    const sortedDates = [...allDates].sort((a, b) => b.localeCompare(a));
+    const currentIndex = sortedDates.indexOf(currentSelectedDate);
+
+    if (currentIndex !== -1 && currentIndex + 1 < sortedDates.length) {
+      const foundPreviousDate = sortedDates[currentIndex + 1];
+      setPreviousComparisonDate(foundPreviousDate);
+      if (!currentData[foundPreviousDate]) {
+        await fetchDataForDate(foundPreviousDate);
+      }
+    } else {
+      setPreviousComparisonDate('');
+    }
+  }, [fetchDataForDate]);
+
   const fetchData = useCallback(async () => {
-    console.log('Calling fetchData (initial/refresh)');
     setLoading(true);
     setError('');
     setData({});
@@ -85,54 +101,56 @@ function VirtualTableList() {
     setPickerDate(null);
 
     try {
-        const fetchedDates = await fetchDates();
-        setDates(fetchedDates);
+      const fetchedDates = await fetchDates();
+      setDates(fetchedDates);
 
-        if (fetchedDates && fetchedDates.length > 0) {
-            const latestDateStr = [...fetchedDates].sort((a, b) => b.localeCompare(a))[0];
-            setSelectedDate(latestDateStr);
-            
-            const dateObj = parseISO(latestDateStr);
-            if (isValid(dateObj)) {
-              setPickerDate(dateObj);
-            }
-            await fetchDataForDate(latestDateStr);
-        } else {
-            console.log('No dates fetched.');
+      if (fetchedDates && fetchedDates.length > 0) {
+        const latestDateStr = [...fetchedDates].sort((a, b) => b.localeCompare(a))[0];
+        setSelectedDate(latestDateStr);
+
+        const dateObj = parseISO(latestDateStr);
+        if (isValid(dateObj)) {
+          setPickerDate(dateObj);
         }
+        await fetchDataForDate(latestDateStr);
+        await fetchPreviousDateDataIfNeeded(latestDateStr, fetchedDates, data);
+      } else {
+        setPreviousComparisonDate('');
+      }
     } catch (err) {
-        console.error('Error fetching initial data:', err);
-        setError(err.message || 'Failed to fetch initial data');
+      console.error('Error fetching initial data:', err);
+      setError(err.message || 'Failed to fetch initial data');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-  }, [fetchDates, fetchDataForDate]);
+  }, [fetchDates, fetchDataForDate, fetchPreviousDateDataIfNeeded]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   const handleRefresh = useCallback(async () => {
-    console.log('Calling handleRefresh');
     await fetchData();
   }, [fetchData]);
-  
+
   const handleDateChange = useCallback((date) => {
     setPickerDate(date);
     if (date && isValid(date)) {
       const formattedDate = format(date, 'yyyy-MM-dd');
-      
+
       setSelectedDate(formattedDate);
       if (!data[formattedDate] || data[formattedDate]?.length === 0) {
-          fetchDataForDate(formattedDate);
+        fetchDataForDate(formattedDate);
       }
+      fetchPreviousDateDataIfNeeded(formattedDate, dates, data);
     } else {
       setSelectedDate('');
+      setPreviousComparisonDate('');
     }
-  }, [fetchDataForDate, data]);
+  }, [fetchDataForDate, data, dates, fetchPreviousDateDataIfNeeded]);
 
-  const validDates = React.useMemo(() => 
-    dates.map(dateStr => parseISO(dateStr)).filter(isValid), 
+  const validDates = React.useMemo(() =>
+    dates.map(dateStr => parseISO(dateStr)).filter(isValid),
     [dates]
   );
 
@@ -142,7 +160,7 @@ function VirtualTableList() {
         <h1 className="display-4 text-center mb-4">
           Weapons Shop History
         </h1>
-      
+
         <div className="d-flex justify-content-center align-items-center mb-3">
           <label htmlFor="date-select" className="me-2 form-label">
             Select Date:
@@ -155,11 +173,11 @@ function VirtualTableList() {
             dateFormat="yyyy-MM-dd"
             className="form-select me-2"
             placeholderText={dates.length > 0 ? "Select a date" : "Loading dates..."}
-            maxDate={new Date()} 
+            maxDate={new Date()}
             disabled={loading && !dates.length}
           />
-      
-          <button 
+
+          <button
             onClick={handleRefresh}
             className="btn btn-primary"
             disabled={loading}
@@ -181,7 +199,7 @@ function VirtualTableList() {
             </div>
           )}
           {!selectedDate && !loading && !error && dates.length === 0 && (
-             <div className="alert alert-info text-center" role="alert">
+            <div className="alert alert-info text-center" role="alert">
               No dates available or still loading initial data.
             </div>
           )}
@@ -199,6 +217,7 @@ function VirtualTableList() {
             <TableCard
               date={selectedDate}
               data={data[selectedDate]}
+              previousData={previousComparisonDate ? data[previousComparisonDate] : null}
             />
           )}
 
@@ -207,15 +226,15 @@ function VirtualTableList() {
               No data available for the selected date: {selectedDate}.
             </div>
           )}
-          
-           {loading && !selectedDate && dates.length === 0 && (
-             <div className="text-center py-3">
-               <div className="spinner-border text-secondary" role="status">
-                 <span className="visually-hidden">Loading available dates...</span>
-               </div>
-               <p className="mt-2 text-muted">Loading available dates...</p>
-             </div>
-           )}
+
+          {loading && !selectedDate && dates.length === 0 && (
+            <div className="text-center py-3">
+              <div className="spinner-border text-secondary" role="status">
+                <span className="visually-hidden">Loading available dates...</span>
+              </div>
+              <p className="mt-2 text-muted">Loading available dates...</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
