@@ -29,7 +29,6 @@ function VirtualTableList() {
       const result = await response.json();
       return result.data.map((d) => d.snapshot_date);
     } catch (err) {
-      console.error('Error fetching dates:', err);
       setError(err.message || 'Failed to fetch dates');
       return [];
     }
@@ -50,7 +49,6 @@ function VirtualTableList() {
       const result = await response.json();
       return result.data;
     } catch (err) {
-      console.error(`Error fetching weapons for date ${date}:`, err);
       setError(err.message || `Failed to fetch weapons for ${date}`);
       return [];
     }
@@ -66,7 +64,6 @@ function VirtualTableList() {
       }
       setData(prevState => ({ ...prevState, [date]: weapons || [] }));
     } catch (err) {
-      console.error(`Error in fetchDataForDate for date ${date}:`, err);
       setData(prevState => ({ ...prevState, [date]: [] }));
     } finally {
       setLoading(false);
@@ -85,7 +82,7 @@ function VirtualTableList() {
     if (currentIndex !== -1 && currentIndex + 1 < sortedDates.length) {
       const foundPreviousDate = sortedDates[currentIndex + 1];
       setPreviousComparisonDate(foundPreviousDate);
-      if (!currentData[foundPreviousDate]) {
+      if (!currentData[foundPreviousDate] || currentData[foundPreviousDate]?.length === 0) {
         await fetchDataForDate(foundPreviousDate);
       }
     } else {
@@ -96,9 +93,11 @@ function VirtualTableList() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError('');
-    setData({});
-    setSelectedDate('');
     setPickerDate(null);
+    setPreviousComparisonDate('');
+
+    let initialData = {};
+    let newSelectedDate = '';
 
     try {
       const fetchedDates = await fetchDates();
@@ -106,24 +105,49 @@ function VirtualTableList() {
 
       if (fetchedDates && fetchedDates.length > 0) {
         const latestDateStr = [...fetchedDates].sort((a, b) => b.localeCompare(a))[0];
-        setSelectedDate(latestDateStr);
+        newSelectedDate = latestDateStr;
 
         const dateObj = parseISO(latestDateStr);
         if (isValid(dateObj)) {
           setPickerDate(dateObj);
         }
-        await fetchDataForDate(latestDateStr);
-        await fetchPreviousDateDataIfNeeded(latestDateStr, fetchedDates, data);
-      } else {
-        setPreviousComparisonDate('');
+
+        let latestDateWeapons = await fetchWeaponsForDate(latestDateStr);
+        if (latestDateWeapons && latestDateWeapons.length > 0) {
+          latestDateWeapons.sort((a, b) => a.id - b.id);
+        }
+        initialData[latestDateStr] = latestDateWeapons || [];
+
+        const sortedAllDates = [...fetchedDates].sort((a, b) => b.localeCompare(a));
+        const currentIndex = sortedAllDates.indexOf(latestDateStr);
+        let newPrevComparisonDate = '';
+
+        if (currentIndex !== -1 && currentIndex + 1 < sortedAllDates.length) {
+          const foundPreviousDate = sortedAllDates[currentIndex + 1];
+          newPrevComparisonDate = foundPreviousDate;
+          if (!initialData[foundPreviousDate]) {
+            let previousDateWeapons = await fetchWeaponsForDate(foundPreviousDate);
+            if (previousDateWeapons && previousDateWeapons.length > 0) {
+              previousDateWeapons.sort((a, b) => a.id - b.id);
+            }
+            initialData[foundPreviousDate] = previousDateWeapons || [];
+          }
+        }
+        setPreviousComparisonDate(newPrevComparisonDate);
       }
+
+      setData(initialData);
+      setSelectedDate(newSelectedDate);
+
     } catch (err) {
-      console.error('Error fetching initial data:', err);
       setError(err.message || 'Failed to fetch initial data');
+      setData({});
+      setSelectedDate('');
+      setPreviousComparisonDate('');
     } finally {
       setLoading(false);
     }
-  }, [fetchDates, fetchDataForDate, fetchPreviousDateDataIfNeeded]);
+  }, [fetchDates, fetchWeaponsForDate]);
 
   useEffect(() => {
     fetchData();
@@ -137,7 +161,6 @@ function VirtualTableList() {
     setPickerDate(date);
     if (date && isValid(date)) {
       const formattedDate = format(date, 'yyyy-MM-dd');
-
       setSelectedDate(formattedDate);
       if (!data[formattedDate] || data[formattedDate]?.length === 0) {
         fetchDataForDate(formattedDate);
@@ -149,8 +172,8 @@ function VirtualTableList() {
     }
   }, [fetchDataForDate, data, dates, fetchPreviousDateDataIfNeeded]);
 
-  const validDates = React.useMemo(() =>
-    dates.map(dateStr => parseISO(dateStr)).filter(isValid),
+  const validDates = React.useMemo(() => 
+    dates.map(dateStr => parseISO(dateStr)).filter(isValid), 
     [dates]
   );
 
@@ -160,7 +183,7 @@ function VirtualTableList() {
         <h1 className="display-4 text-center mb-4">
           Weapons Shop History
         </h1>
-
+      
         <div className="d-flex justify-content-center align-items-center mb-3">
           <label htmlFor="date-select" className="me-2 form-label">
             Select Date:
@@ -173,11 +196,11 @@ function VirtualTableList() {
             dateFormat="yyyy-MM-dd"
             className="form-select me-2"
             placeholderText={dates.length > 0 ? "Select a date" : "Loading dates..."}
-            maxDate={new Date()}
+            maxDate={new Date()} 
             disabled={loading && !dates.length}
           />
-
-          <button
+      
+          <button 
             onClick={handleRefresh}
             className="btn btn-primary"
             disabled={loading}
@@ -212,6 +235,15 @@ function VirtualTableList() {
               <p className="mt-2 text-muted">Loading weapons for {selectedDate}...</p>
             </div>
           )}
+          
+          {loading && !selectedDate && dates.length === 0 && (
+            <div className="text-center py-3">
+              <div className="spinner-border text-secondary" role="status">
+                <span className="visually-hidden">Loading available dates...</span>
+              </div>
+              <p className="mt-2 text-muted">Loading available dates...</p>
+            </div>
+          )}
 
           {!loading && selectedDate && data[selectedDate] && data[selectedDate].length > 0 && (
             <TableCard
@@ -224,15 +256,6 @@ function VirtualTableList() {
           {!loading && selectedDate && (!data[selectedDate] || data[selectedDate].length === 0) && !error && (
             <div className="alert alert-warning text-center" role="alert">
               No data available for the selected date: {selectedDate}.
-            </div>
-          )}
-
-          {loading && !selectedDate && dates.length === 0 && (
-            <div className="text-center py-3">
-              <div className="spinner-border text-secondary" role="status">
-                <span className="visually-hidden">Loading available dates...</span>
-              </div>
-              <p className="mt-2 text-muted">Loading available dates...</p>
             </div>
           )}
         </div>
