@@ -52,13 +52,11 @@ function VirtualTableList() {
     if (!date) return [];
     try {
       const getWeaponsByDateCallable = httpsCallable(appFunctions, 'getWeaponsByDate');
-
       const result = await getWeaponsByDateCallable({ date });
 
       if (result && result.data && Array.isArray(result.data.data)) {
         return result.data.data;
       }
-
       if (result && Array.isArray(result.data)) {
          return result.data;
       }
@@ -281,7 +279,9 @@ function VirtualTableList() {
                   <li className="list-group-item d-flex flex-column flex-sm-row justify-content-between align-items-sm-center">
                     <span className="fw-bold me-2">Best Value (Price/Durability):</span>
                     {bestStats.bestPPDWeapon ? (
-                      <span className="text-success fw-bolder">{bestStats.bestPPDWeapon.weapon.name} ({bestStats.bestPPDWeapon.value.toFixed(2)})</span>
+                      <span className="text-success fw-bolder">
+                        ID: {bestStats.bestPPDWeapon.weapon.id} {bestStats.bestPPDWeapon.weapon.type} - {bestStats.bestPPDWeapon.weapon.name} ({bestStats.bestPPDWeapon.value.toFixed(2)})
+                      </span>
                     ) : (
                       <span className="text-muted">N/A</span>
                     )}
@@ -289,7 +289,9 @@ function VirtualTableList() {
                   <li className="list-group-item d-flex flex-column flex-sm-row justify-content-between align-items-sm-center">
                     <span className="fw-bold me-2">Best Cost-Effectiveness (Damage/Coin):</span>
                     {bestStats.bestDPCWeapon ? (
-                      <span className="text-success fw-bolder">{bestStats.bestDPCWeapon.weapon.name} ({bestStats.bestDPCWeapon.value.toFixed(2)})</span>
+                      <span className="text-success fw-bolder">
+                        ID: {bestStats.bestDPCWeapon.weapon.id} {bestStats.bestDPCWeapon.weapon.type} - {bestStats.bestDPCWeapon.weapon.name} ({bestStats.bestDPCWeapon.value.toFixed(2)})
+                      </span>
                     ) : (
                       <span className="text-muted">N/A</span>
                     )}
@@ -297,7 +299,9 @@ function VirtualTableList() {
                   <li className="list-group-item d-flex flex-column flex-sm-row justify-content-between align-items-sm-center">
                     <span className="fw-bold me-2">Overall Combat Efficiency:</span>
                     {bestStats.bestOCEWeapon ? (
-                      <span className="text-success fw-bolder">{bestStats.bestOCEWeapon.weapon.name} ({bestStats.bestOCEWeapon.value.toFixed(2)})</span>
+                      <span className="text-success fw-bolder">
+                        ID: {bestStats.bestOCEWeapon.weapon.id} {bestStats.bestOCEWeapon.weapon.type} - {bestStats.bestOCEWeapon.weapon.name} ({bestStats.bestOCEWeapon.value.toFixed(2)})
+                      </span>
                     ) : (
                       <span className="text-muted">N/A</span>
                     )}

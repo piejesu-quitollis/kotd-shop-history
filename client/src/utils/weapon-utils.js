@@ -28,6 +28,7 @@ export const parseDurability = (durabilityString) => {
     const durability = parseInt(slashMatch[1], 10);
     return isNaN(durability) ? null : durability;
   }
+
   const directNumber = parseInt(durabilityString, 10);
   if (!isNaN(directNumber)) {
       return directNumber;
@@ -45,7 +46,12 @@ export const parseDamage = (damageString) => {
     return null;
   }
 
-  const parts = damageString.split('-').map(part => parseFloat(part.trim()));
+  let processedString = damageString;
+  if (processedString.startsWith('~')) {
+    processedString = processedString.slice(1);
+  }
+
+  const parts = processedString.split('-').map(part => parseFloat(part.trim()));
   if (parts.length === 1 && !isNaN(parts[0])) {
     return parts[0];
   } else if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
@@ -59,39 +65,69 @@ export const getPriceChangeInfo = (weapon, previousData) => {
   if (!previousData || previousData.length === 0) return null;
   if (!weapon || weapon.price == null) return null;
 
+  if (!weapon) return null;
+
   const previousWeapon = previousData.find(pw => pw.id === weapon.id);
-  if (!previousWeapon || previousWeapon.price == null) return null;
+  if (!previousWeapon) return null;
 
   const currentPrice = parsePrice(weapon.price);
+  const currentDurability = parseDurability(weapon.durability);
   const prevPrice = parsePrice(previousWeapon.price);
+  const previousDurability = parseDurability(previousWeapon.durability);
 
-  if (currentPrice === null || prevPrice === null) {
+  const currentPPD = (currentPrice !== null && currentDurability !== null && currentDurability > 0) 
+    ? currentPrice / currentDurability 
+    : null;
+  const previousPPD = (prevPrice !== null && previousDurability !== null && previousDurability > 0) 
+    ? prevPrice / previousDurability 
+    : null;
+
+  if (currentPPD === null && previousPPD === null) {
     return null;
   }
 
-  if (prevPrice === 0) {
-    if (currentPrice === 0) {
+  if (previousPPD === null) {
+    return { 
+      sign: currentPPD === 0 ? '' : '+',
+      amount: 'New', 
+      percentageChange: Infinity, 
+      color: currentPPD === 0 ? 'green' : '#007bff' 
+    };
+  }
+
+  if (currentPPD === null) {
+    return { 
+      sign: '-', 
+      amount: 'Removed', 
+      percentageChange: -Infinity, 
+      color: 'grey' 
+    };
+  }
+
+  if (previousPPD === 0) {
+    if (currentPPD === 0) {
       return null;
     } else {
-      return { sign: '+', amount: 'New', percentageChange: Infinity, color: '#007bff' };
+      return { 
+        sign: '+',
+        amount: currentPPD.toFixed(2),
+        percentageChange: Infinity,
+        color: 'red'
+      };
     }
   }
 
-  const percentageChange = ((currentPrice - prevPrice) / prevPrice) * 100;
+  const percentageChange = ((currentPPD - previousPPD) / previousPPD) * 100;
 
-  if (percentageChange === 0) {
+  if (Math.abs(percentageChange) < 0.1) {
     return null;
   }
 
-  const sign = percentageChange > 0 ? '+' : '-';
-  const amount = Math.abs(percentageChange);
-  const color = percentageChange > 0 ? 'red' : 'green';
-
   return {
-    sign,
-    amount,
-    percentageChange,
-    color
+    sign: percentageChange > 0 ? '+' : '-',
+    amount: Math.abs(percentageChange),
+    percentageChange: percentageChange,
+    color: percentageChange > 0 ? 'red' : 'green', 
   };
 };
 
@@ -119,7 +155,7 @@ export const calculateDamagePerCoin = (weapon) => {
   if (damage === null || price === null || price === 0) {
     return null;
   }
-
+  
   if (damage === 0) return 0;
 
   return damage / price;

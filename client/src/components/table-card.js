@@ -48,7 +48,11 @@ const TableCard = ({ data, date, previousData }) => {
                     {weapon.price}
                     {priceChangeInfo && (
                       <span style={{ color: priceChangeInfo.color, marginLeft: '5px', fontSize: '0.9em' }}>
-                        ({priceChangeInfo.sign}{priceChangeInfo.amount})
+                        ({priceChangeInfo.sign}
+                        {typeof priceChangeInfo.amount === 'string' 
+                          ? priceChangeInfo.amount 
+                          : `${priceChangeInfo.amount.toFixed(1)}%`}
+                        )
                       </span>
                     )}
                   </td>
