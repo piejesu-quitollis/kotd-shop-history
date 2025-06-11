@@ -24,12 +24,25 @@ function VirtualTableList() {
     try {
       const getAllDatesCallable = httpsCallable(appFunctions, 'getAllDates');
       const result = await getAllDatesCallable();
-      if (result && result.data && Array.isArray(result.data.data)) {
-        return result.data.data.map((d) => d.snapshot_date);
+      
+      let datesResult = [];
+      if (result && result.data) {
+        if (Array.isArray(result.data)) {
+          datesResult = result.data;
+        } else if (Array.isArray(result.data.data)) {
+          datesResult = result.data.data;
+        } else {
+          console.error('Unexpected data structure from getAllDates. Expected array or { data: array }:', result.data);
+        }
+      } else {
+        console.error('Unexpected result structure from getAllDates. No data field found or result is null/undefined:', result);
       }
-      console.warn('Unexpected data structure from getAllDates:', result.data);
-      return [];
+      
+      return datesResult
+        .filter(d => d && typeof d.snapshot_date !== 'undefined')
+        .map((d) => d.snapshot_date);
     } catch (err) {
+      console.error('Error in fetchDates:', err);
       setError(err.message || 'Failed to fetch dates');
       return [];
     }
@@ -39,10 +52,13 @@ function VirtualTableList() {
     if (!date) return [];
     try {
       const getWeaponsByDateCallable = httpsCallable(appFunctions, 'getWeaponsByDate');
+
       const result = await getWeaponsByDateCallable({ date });
+
       if (result && result.data && Array.isArray(result.data.data)) {
         return result.data.data;
       }
+
       if (result && Array.isArray(result.data)) {
          return result.data;
       }
@@ -254,7 +270,6 @@ function VirtualTableList() {
           </div>
         )}
 
-        {/* Statistics Display Section */}
         {!loading && selectedDate && data[selectedDate] && data[selectedDate].length > 0 && (
           <div className="row justify-content-center my-3">
             <div className="col-lg-8 col-md-10 col-sm-12">
