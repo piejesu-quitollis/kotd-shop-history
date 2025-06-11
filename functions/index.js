@@ -1,7 +1,18 @@
 const { setGlobalOptions } = require("firebase-functions/v2");
 const { onRequest, onCall } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const cors = require('cors')({origin: true});
+
+const projectId = process.env.REACT_APP_FIREBASE_PROJECT_ID;
+let allowedOrigin;
+
+if (projectId) {
+  allowedOrigin = `https://${projectId}.web.app`;
+} else {
+  allowedOrigin = 'https://kotd-shop-history.web.app';
+  console.warn('REACT_APP_FIREBASE_PROJECT_ID environment variable not set. CORS origin defaulting to placeholder. Please configure this for production.');
+}
+
+const cors = require('cors')({origin: allowedOrigin});
 const { getFirestore } = require("firebase-admin/firestore");
 const { initializeApp } = require("firebase-admin/app");
 const { DataProcessor } = require("./data-processor");

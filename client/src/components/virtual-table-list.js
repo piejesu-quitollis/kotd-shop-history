@@ -3,8 +3,13 @@ import TableCard from './table-card';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { parseISO, isValid, format } from 'date-fns';
-
-const FUNCTION_BASE_URL = 'https://europe-west1-kotd-shop-history.cloudfunctions.net';
+import { httpsCallable } from 'firebase/functions';
+import { functions as appFunctions } from '../firebase';
+import {
+  calculatePricePerDurability,
+  calculateDamagePerCoin,
+  calculateOverallCombatEfficiency,
+} from '../utils/weapon-utils';
 
 function VirtualTableList() {
   const [data, setData] = useState({});
@@ -17,17 +22,13 @@ function VirtualTableList() {
 
   const fetchDates = useCallback(async () => {
     try {
-      const response = await fetch(`${FUNCTION_BASE_URL}/getAllDates`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: `Server error: ${response.status}` }));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
+      const getAllDatesCallable = httpsCallable(appFunctions, 'getAllDates');
+      const result = await getAllDatesCallable();
+      if (result && result.data && Array.isArray(result.data.data)) {
+        return result.data.data.map((d) => d.snapshot_date);
       }
-      const result = await response.json();
-      return result.data.map((d) => d.snapshot_date);
+      console.warn('Unexpected data structure from getAllDates:', result.data);
+      return [];
     } catch (err) {
       setError(err.message || 'Failed to fetch dates');
       return [];
@@ -37,17 +38,16 @@ function VirtualTableList() {
   const fetchWeaponsForDate = useCallback(async (date) => {
     if (!date) return [];
     try {
-      const response = await fetch(`${FUNCTION_BASE_URL}/getWeaponsByDate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: { date } }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: `Server error: ${response.status}` }));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
+      const getWeaponsByDateCallable = httpsCallable(appFunctions, 'getWeaponsByDate');
+      const result = await getWeaponsByDateCallable({ date });
+      if (result && result.data && Array.isArray(result.data.data)) {
+        return result.data.data;
       }
-      const result = await response.json();
-      return result.data;
+      if (result && Array.isArray(result.data)) {
+         return result.data;
+      }
+      console.warn('Unexpected data structure from getWeaponsByDate:', result.data);
+      return [];
     } catch (err) {
       setError(err.message || `Failed to fetch weapons for ${date}`);
       return [];
@@ -64,6 +64,7 @@ function VirtualTableList() {
       }
       setData(prevState => ({ ...prevState, [date]: weapons || [] }));
     } catch (err) {
+      console.error(`Error fetching data for date ${date}:`, err);
       setData(prevState => ({ ...prevState, [date]: [] }));
     } finally {
       setLoading(false);
@@ -140,6 +141,7 @@ function VirtualTableList() {
       setSelectedDate(newSelectedDate);
 
     } catch (err) {
+      console.error('Error fetching initial data:', err);
       setError(err.message || 'Failed to fetch initial data');
       setData({});
       setSelectedDate('');
@@ -177,6 +179,43 @@ function VirtualTableList() {
     [dates]
   );
 
+  const bestStats = React.useMemo(() => {
+    const currentWeapons = data[selectedDate];
+    if (!currentWeapons || currentWeapons.length === 0) {
+      return {
+        bestPPDWeapon: null,
+        bestDPCWeapon: null,
+        bestOCEWeapon: null,
+      };
+    }
+
+    let bestPPD = { weapon: null, value: Infinity };
+    let bestDPC = { weapon: null, value: 0 };
+    let bestOCE = { weapon: null, value: 0 };
+
+    currentWeapons.forEach(weapon => {
+      const ppd = calculatePricePerDurability(weapon);
+      const dpc = calculateDamagePerCoin(weapon);
+      const oce = calculateOverallCombatEfficiency(weapon);
+
+      if (ppd !== null && ppd < bestPPD.value) {
+        bestPPD = { weapon, value: ppd };
+      }
+      if (dpc !== null && dpc > bestDPC.value) {
+        bestDPC = { weapon, value: dpc };
+      }
+      if (oce !== null && oce > bestOCE.value) {
+        bestOCE = { weapon, value: oce };
+      }
+    });
+
+    return {
+      bestPPDWeapon: bestPPD.value !== Infinity ? bestPPD : null,
+      bestDPCWeapon: bestDPC.value !== 0 || (bestDPC.weapon && bestDPC.value === 0) ? bestDPC : null,
+      bestOCEWeapon: bestOCE.value !== 0 || (bestOCE.weapon && bestOCE.value === 0) ? bestOCE : null,
+    };
+  }, [data, selectedDate]);
+
   return (
     <div className="container-fluid bg-light" style={{ minHeight: '100vh' }}>
       <div className="py-4">
@@ -212,6 +251,45 @@ function VirtualTableList() {
         {error && (
           <div className="alert alert-danger text-center" role="alert">
             {error}
+          </div>
+        )}
+
+        {/* Statistics Display Section */}
+        {!loading && selectedDate && data[selectedDate] && data[selectedDate].length > 0 && (
+          <div className="row justify-content-center my-3">
+            <div className="col-lg-8 col-md-10 col-sm-12">
+              <div className="card shadow-sm">
+                <div className="card-header text-center bg-primary text-white">
+                  <h4 className="mb-0">Daily Standouts</h4>
+                </div>
+                <ul className="list-group list-group-flush">
+                  <li className="list-group-item d-flex flex-column flex-sm-row justify-content-between align-items-sm-center">
+                    <span className="fw-bold me-2">Best Value (Price/Durability):</span>
+                    {bestStats.bestPPDWeapon ? (
+                      <span className="text-success fw-bolder">{bestStats.bestPPDWeapon.weapon.name} ({bestStats.bestPPDWeapon.value.toFixed(2)})</span>
+                    ) : (
+                      <span className="text-muted">N/A</span>
+                    )}
+                  </li>
+                  <li className="list-group-item d-flex flex-column flex-sm-row justify-content-between align-items-sm-center">
+                    <span className="fw-bold me-2">Best Cost-Effectiveness (Damage/Coin):</span>
+                    {bestStats.bestDPCWeapon ? (
+                      <span className="text-success fw-bolder">{bestStats.bestDPCWeapon.weapon.name} ({bestStats.bestDPCWeapon.value.toFixed(2)})</span>
+                    ) : (
+                      <span className="text-muted">N/A</span>
+                    )}
+                  </li>
+                  <li className="list-group-item d-flex flex-column flex-sm-row justify-content-between align-items-sm-center">
+                    <span className="fw-bold me-2">Overall Combat Efficiency:</span>
+                    {bestStats.bestOCEWeapon ? (
+                      <span className="text-success fw-bolder">{bestStats.bestOCEWeapon.weapon.name} ({bestStats.bestOCEWeapon.value.toFixed(2)})</span>
+                    ) : (
+                      <span className="text-muted">N/A</span>
+                    )}
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         )}
 
