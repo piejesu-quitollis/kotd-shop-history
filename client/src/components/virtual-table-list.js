@@ -3,8 +3,7 @@ import TableCard from './table-card';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { parseISO, isValid, format } from 'date-fns';
-import { httpsCallable } from 'firebase/functions';
-import { functions as appFunctions } from '../firebase';
+import { projectId as firebaseProjectId } from '../firebase';
 import {
   calculatePricePerDurability,
   calculateDamagePerCoin,
@@ -20,11 +19,31 @@ function VirtualTableList() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+  const projectId = firebaseProjectId || process.env.REACT_APP_FIREBASE_PROJECT_ID;
+  const baseUrl = isLocal
+    ? (projectId ? `http://localhost:5001/${projectId}/europe-west1` : '')
+    : (projectId ? `https://europe-west1-${projectId}.cloudfunctions.net` : '');
+
+  const callHttpFunction = useCallback(async (name, payload) => {
+    if (!baseUrl) {
+      throw new Error('Firebase projectId is not set. Define REACT_APP_FIREBASE_PROJECT_ID in client/.env.local');
+    }
+    const res = await fetch(`${baseUrl}/${name}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: payload || {} })
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`HTTP ${res.status} ${res.statusText}: ${text}`);
+    }
+    return res.json();
+  }, [baseUrl]);
+
   const fetchDates = useCallback(async () => {
     try {
-      const getAllDatesCallable = httpsCallable(appFunctions, 'getAllDates');
-      const result = await getAllDatesCallable();
-      
+      const result = await callHttpFunction('getAllDates');
       let datesResult = [];
       if (result && result.data) {
         if (Array.isArray(result.data)) {
@@ -37,7 +56,6 @@ function VirtualTableList() {
       } else {
         console.error('Unexpected result structure from getAllDates. No data field found or result is null/undefined:', result);
       }
-      
       return datesResult
         .filter(d => d && typeof d.snapshot_date !== 'undefined')
         .map((d) => d.snapshot_date);
@@ -46,13 +64,12 @@ function VirtualTableList() {
       setError(err.message || 'Failed to fetch dates');
       return [];
     }
-  }, []);
+  }, [callHttpFunction]);
 
   const fetchWeaponsForDate = useCallback(async (date) => {
     if (!date) return [];
     try {
-      const getWeaponsByDateCallable = httpsCallable(appFunctions, 'getWeaponsByDate');
-      const result = await getWeaponsByDateCallable({ date });
+      const result = await callHttpFunction('getWeaponsByDate', { date });
 
       if (result && result.data && Array.isArray(result.data.data)) {
         return result.data.data;
@@ -60,13 +77,13 @@ function VirtualTableList() {
       if (result && Array.isArray(result.data)) {
          return result.data;
       }
-      console.warn('Unexpected data structure from getWeaponsByDate:', result.data);
+      console.warn('Unexpected data structure from getWeaponsByDate:', result?.data);
       return [];
     } catch (err) {
       setError(err.message || `Failed to fetch weapons for ${date}`);
       return [];
     }
-  }, []);
+  }, [callHttpFunction]);
 
   const fetchDataForDate = useCallback(async (date) => {
     if (!date) return;

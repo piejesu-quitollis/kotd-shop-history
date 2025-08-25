@@ -2,17 +2,34 @@ const { setGlobalOptions } = require("firebase-functions/v2");
 const { onRequest, onCall } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 
-const projectId = process.env.REACT_APP_FIREBASE_PROJECT_ID;
-let allowedOrigin;
 
-if (projectId) {
-  allowedOrigin = `https://${projectId}.web.app`;
-} else {
-  allowedOrigin = 'https://kotd-shop-history.web.app';
-  console.warn('REACT_APP_FIREBASE_PROJECT_ID environment variable not set. CORS origin defaulting to placeholder. Please configure this for production.');
+let projectId = process.env.REACT_APP_FIREBASE_PROJECT_ID;
+if (!projectId) {
+  try {
+    const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG || '{}');
+    if (firebaseConfig.projectId) {
+      projectId = firebaseConfig.projectId;
+    }
+  } catch (_) {
+    // ignore parse errors, fall back to default below
+  }
 }
 
-const cors = require('cors')({origin: allowedOrigin});
+const allowedOrigins = [
+  projectId ? `https://${projectId}.web.app` : 'https://kotd-shop-history.web.app',
+  projectId ? `https://${projectId}.firebaseapp.com` : 'https://kotd-shop-history.firebaseapp.com',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+];
+
+const cors = require('cors')({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // allow non-browser tools
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`CORS: Origin ${origin} not allowed`), false);
+  }
+});
+
 const { getFirestore } = require("firebase-admin/firestore");
 const { initializeApp } = require("firebase-admin/app");
 const { DataProcessor } = require("./data-processor");
