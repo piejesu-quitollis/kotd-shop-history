@@ -41,8 +41,9 @@ function WeaponsShopView() {
         {!loading && selectedDate && dataByDate[selectedDate] && dataByDate[selectedDate].length > 0 && (
           <BestWeaponsCard
             bestPPDWeapon={bestStats.bestPPDWeapon}
-            bestDPCWeapon={bestStats.bestDPCWeapon}
-            bestOCEWeapon={bestStats.bestOCEWeapon}
+            bestPPDDWeapon={bestStats.bestPPDDWeapon}
+            bestPPDByType={bestStats.bestPPDByType}
+            bestPPDDByType={bestStats.bestPPDDByType}
           />
         )}
 

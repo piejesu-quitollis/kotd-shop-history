@@ -176,3 +176,21 @@ export const calculateOverallCombatEfficiency = (weapon) => {
 
   return (damage * durability) / price;
 };
+
+export const calculatePricePerDamageTimesDurability = (weapon) => {
+  if (!weapon) return null;
+
+  const damage = parseDamage(weapon.damage);
+  const durability = parseDurability(weapon.durability);
+  const price = parsePrice(weapon.price);
+
+  if (damage === null || durability === null || price === null) {
+    return null;
+  }
+  const denom = damage * durability;
+  if (!denom) {
+    return null;
+  }
+  if (price === 0) return 0;
+  return price / denom;
+};
