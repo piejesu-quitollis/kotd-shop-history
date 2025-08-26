@@ -1,11 +1,11 @@
 import './App.css';
-import VirtualTableList from './components/virtual-table-list';
+import WeaponsShopView from './components/weapons-shop-view';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
   return (
     <div className="App">
-      <VirtualTableList />
+      <WeaponsShopView />
     </div>
   );
 }
