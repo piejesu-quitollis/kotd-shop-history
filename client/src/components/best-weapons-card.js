@@ -1,18 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export default function BestWeaponsCard({ bestPPDWeapon, bestPPDDWeapon, bestPPDByType, bestPPDDByType }) {
+  const [open, setOpen] = useState(true);
   const hasAny = bestPPDWeapon || bestPPDDWeapon || (bestPPDByType && (bestPPDByType.magic || bestPPDByType.melee || bestPPDByType.range)) || (bestPPDDByType && (bestPPDDByType.magic || bestPPDDByType.melee || bestPPDDByType.range));
   if (!hasAny) return null;
   const fmt = (n) => n == null ? '-' : parseFloat(n.toFixed(2)).toString();
   const label = (key) => key === 'magic' ? '🔮 Magic' : key === 'melee' ? '⚔️ Melee' : key === 'range' ? '🏹 Range' : key;
   return (
-    <div className="row justify-content-center my-3">
-      <div className="col-lg-8 col-md-10 col-sm-12">
-        <div className="card shadow-sm">
-          <div className="card-header text-center bg-primary text-white">
-            <h4 className="mb-0">Daily Standouts</h4>
-          </div>
-          <ul className="list-group list-group-flush">
+    <div className="card shadow-sm mx-3 mb-4">
+      <div className="card-body p-0">
+        <ul className="list-group list-group-flush text-nowrap mb-0" style={{ fontSize: '0.9rem' }}>
+          {/* Clickable header row */}
+          <li
+            className="list-group-item bg-primary text-white d-flex justify-content-between align-items-center"
+            role="button"
+            onClick={() => setOpen((v) => !v)}
+            style={{ cursor: 'pointer' }}
+            aria-expanded={open}
+          >
+            <span className="fw-semibold">Daily Standouts</span>
+            <span className="ms-2 text-white-50" aria-hidden="true">{open ? '▼' : '▶'}</span>
+          </li>
+          {open && (
+            <>
             {/* Overall */}
             <li className="list-group-item fw-semibold" style={{ backgroundColor: '#e9ecef' }}>Best Overall</li>
             <li className="list-group-item d-flex flex-column flex-sm-row justify-content-between align-items-sm-center">
@@ -104,8 +114,9 @@ export default function BestWeaponsCard({ bestPPDWeapon, bestPPDDWeapon, bestPPD
                 <span className="text-muted">N/A</span>
               )}
             </li>
-          </ul>
-        </div>
+            </>
+          )}
+        </ul>
       </div>
     </div>
   );

@@ -102,96 +102,68 @@ const TableCard = ({ data, date, previousData }) => {
   const ppddStats = computeStats(ppddList);
 
   return (
-    <div className="row mx-3 mb-4 g-3">
-      {/* Left card: calculated metrics */}
-      <div className="col-12 col-lg-3">
-        <div className="card shadow-sm h-100">
-          <div className="card-header bg-secondary text-white">
-            <h5 className="card-title mb-0">Calculated Metrics</h5>
-          </div>
-          <div className="card-body p-0">
-            <div className="table-responsive">
-              <table className="table table-hover mb-0">
-                <thead>
-                  <tr>
-                    <th style={{ width: '50%' }}>Price/Durability</th>
-                    <th style={{ width: '50%' }}>Price/(Damage*Durability)</th>
+    <div className="card shadow-sm mx-3 mb-4">
+      <div className="card-body p-0">
+        <div className="table-responsive">
+          <table className="table table-hover table-sm text-nowrap mb-0" style={{ fontSize: '0.9rem' }}>
+            <thead>
+              <tr className="align-middle">
+                <th colSpan={2} className="bg-secondary text-white">Calculated Metrics</th>
+                <th style={{ width: 12, backgroundColor: 'transparent', border: 'none' }}></th>
+                <th colSpan={8} className="bg-primary text-white">Shop: {date}</th>
+              </tr>
+              <tr>
+                <th>Price/Durability</th>
+                <th>Price/(Damage*Durability)</th>
+                <th style={{ width: 12, backgroundColor: 'transparent', border: 'none' }}></th>
+                <th>Price</th>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Name</th>
+                <th>Damage</th>
+                <th>Durability</th>
+                <th>Element</th>
+                <th>Req Lv.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((weapon, idx) => {
+                const ppd = ppdList[idx];
+                const ppdd = ppddList[idx];
+                const priceChangeInfo = getPriceChangeInfo(weapon, previousData);
+                return (
+                  <tr key={weapon.id}>
+                    <td style={{ backgroundColor: valueToColor(ppd, ppdStats) }}>{formatMetric(ppd)}</td>
+                    <td style={{ backgroundColor: valueToColor(ppdd, ppddStats) }}>{formatMetric(ppdd)}</td>
+                    <td style={{ width: 12, backgroundColor: 'transparent', border: 'none' }}></td>
+                    <td>
+                      {weapon.price}
+                      {priceChangeInfo && (
+                        <span style={{ color: priceChangeInfo.color, marginLeft: 5, fontSize: '0.9em' }}>
+                          ({priceChangeInfo.sign}
+                          {typeof priceChangeInfo.amount === 'string'
+                            ? priceChangeInfo.amount
+                            : `${priceChangeInfo.amount.toFixed(1)}%`}
+                          )
+                        </span>
+                      )}
+                    </td>
+                    <td>{weapon.id}</td>
+                    <td>{weapon.type}</td>
+                    <td><strong>{weapon.name}</strong></td>
+                    <td>{weapon.damage}</td>
+                    <td>{weapon.durability}</td>
+                    <td>
+                      <span className={getElementBadgeClass(weapon.element)}>
+                        {weapon.element}
+                      </span>
+                    </td>
+                    <td>{weapon.reqLevel != null ? weapon.reqLevel : '-'}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {data.map((weapon, idx) => {
-                    const ppd = ppdList[idx];
-                    const ppdd = ppddList[idx];
-                    return (
-                      <tr key={`metrics-${weapon.id}`}>
-                        <td style={{ backgroundColor: valueToColor(ppd, ppdStats) }}>{formatMetric(ppd)}</td>
-                        <td style={{ backgroundColor: valueToColor(ppdd, ppddStats) }}>{formatMetric(ppdd)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Right card: main weapon data */}
-      <div className="col-12 col-lg-9">
-        <div className="card shadow-sm h-100">
-          <div className="card-header bg-primary text-white">
-            <h5 className="card-title mb-0">Shop: {date}</h5>
-          </div>
-          <div className="card-body p-0">
-            <div className="table-responsive">
-              <table className="table table-hover table-striped mb-0">
-                <thead>
-                  <tr>
-                    <th>Price</th>
-                    <th>ID</th>
-                    <th>Type</th>
-                    <th>Name</th>
-                    <th>Damage</th>
-                    <th>Durability</th>
-                    <th>Element</th>
-                    <th>Req Lv.</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.map((weapon) => {
-                    const priceChangeInfo = getPriceChangeInfo(weapon, previousData);
-                    return (
-                      <tr key={weapon.id}>
-                        <td>
-                          {weapon.price}
-                          {priceChangeInfo && (
-                            <span style={{ color: priceChangeInfo.color, marginLeft: '5px', fontSize: '0.9em' }}>
-                              ({priceChangeInfo.sign}
-                              {typeof priceChangeInfo.amount === 'string'
-                                ? priceChangeInfo.amount
-                                : `${priceChangeInfo.amount.toFixed(1)}%`}
-                              )
-                            </span>
-                          )}
-                        </td>
-                        <td>{weapon.id}</td>
-                        <td>{weapon.type}</td>
-                        <td><strong>{weapon.name}</strong></td>
-                        <td>{weapon.damage}</td>
-                        <td>{weapon.durability}</td>
-                        <td>
-                          <span className={getElementBadgeClass(weapon.element)}>
-                            {weapon.element}
-                          </span>
-                        </td>
-                        <td>{weapon.reqLevel != null ? weapon.reqLevel : '-'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
