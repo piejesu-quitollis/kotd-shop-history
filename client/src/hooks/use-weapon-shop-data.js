@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getLatestDaily } from '../services/functions-client';
 
 export default function useWeaponShopData() {
@@ -8,7 +8,6 @@ export default function useWeaponShopData() {
   // prev date/items removed in minimal view
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const inFlight = useRef({});
 
   // previous-day logic removed
 
