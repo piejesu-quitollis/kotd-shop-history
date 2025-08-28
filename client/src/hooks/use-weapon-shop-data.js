@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getLatestDaily } from '../services/functions-client';
 
 export default function useWeaponShopData() {
