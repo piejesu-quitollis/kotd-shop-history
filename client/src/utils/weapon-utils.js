@@ -13,6 +13,10 @@ export const parsePrice = (priceString) => {
 
 export const parseDurability = (durabilityString) => {
   if (durabilityString === null || durabilityString === undefined) return null;
+  // Accept numbers directly in the new model
+  if (typeof durabilityString === 'number') {
+    return isNaN(durabilityString) ? null : durabilityString;
+  }
   if (typeof durabilityString !== 'string') {
     return null;
   }
@@ -67,7 +71,12 @@ export const getPriceChangeInfo = (weapon, previousData) => {
 
   if (!weapon) return null;
 
-  const previousWeapon = previousData.find(pw => pw.id === weapon.id);
+  // Support both legacy {id} and new-model {weaponId}
+  const currentId = weapon.id != null ? weapon.id : weapon.weaponId;
+  const previousWeapon = previousData.find(pw => {
+    const pid = pw.id != null ? pw.id : pw.weaponId;
+    return pid === currentId;
+  });
   if (!previousWeapon) return null;
 
   const currentPrice = parsePrice(weapon.price);
@@ -180,7 +189,8 @@ export const calculateOverallCombatEfficiency = (weapon) => {
 export const calculatePricePerDamageTimesDurability = (weapon) => {
   if (!weapon) return null;
 
-  const damage = parseDamage(weapon.damage);
+  const rawDamage = weapon.damage != null ? weapon.damage : weapon.baseDamage;
+  const damage = parseDamage(rawDamage);
   const durability = parseDurability(weapon.durability);
   const price = parsePrice(weapon.price);
 
