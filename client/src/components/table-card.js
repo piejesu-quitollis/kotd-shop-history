@@ -134,8 +134,9 @@ const TableCard = ({ data, date }) => {
   }, [seriesById, loadingSeries]);
 
   const Sparkline = ({ series }) => {
-    // Hover state must be declared before any early returns
+    // Hover state and tooltip overlay
     const [hoverIdx, setHoverIdx] = useState(null);
+    const [tip, setTip] = useState({ show: false, left: 0, top: 0 });
     if (!series || series.length === 0) {
       return <div className="text-muted small">No data in history.</div>;
     }
@@ -195,8 +196,20 @@ const TableCard = ({ data, date }) => {
       const t = Math.max(0, Math.min(1, (x - plotX) / Math.max(plotW, 1)));
       const idx = Math.round(t * (n - 1));
       setHoverIdx(idx);
+
+      // Position fixed-size HTML tooltip within the container using scaled px
+      const rect = svg.getBoundingClientRect();
+      const scaleX = rect.width / w;
+      const px = xAt(idx) * scaleX; // x in px relative to left edge
+      const TIP_W = 160;
+      const margin = 8;
+  let left = px + margin;
+  if (left + TIP_W > rect.width) left = rect.width - TIP_W - margin;
+  if (left < margin) left = margin;
+      const top = 8; // slight offset from top
+      setTip({ show: true, left, top });
     };
-    const onLeave = () => setHoverIdx(null);
+    const onLeave = () => { setHoverIdx(null); setTip(t => ({ ...t, show: false })); };
 
     const parseDay = (s) => new Date(`${s}T00:00:00Z`);
     const daysBetween = (a, b) => {
@@ -206,8 +219,8 @@ const TableCard = ({ data, date }) => {
     };
 
     return (
-      <div style={{ width: '100%', maxWidth: '100%', minWidth: 0, overflowX: 'auto', overflowY: 'hidden' }}>
-        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" onMouseMove={onMove} onMouseLeave={onLeave}>
+      <div style={{ position: 'relative', width: '100%', maxWidth: '100%', minWidth: 0, overflowX: 'hidden', overflowY: 'hidden' }}>
+        <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" onMouseMove={onMove} onMouseLeave={onLeave}>
           {/* axes */}
           <line x1={plotX} y1={plotY} x2={plotX} y2={plotY + plotH} stroke={axisColor} strokeWidth="1" />
           <line x1={plotX} y1={plotY + plotH} x2={plotX + plotW} y2={plotY + plotH} stroke={axisColor} strokeWidth="1" />
@@ -272,18 +285,33 @@ const TableCard = ({ data, date }) => {
               {seq[hoverIdx].value != null && (
                 <circle cx={xAt(hoverIdx)} cy={yAt(seq[hoverIdx].value)} r="4" fill="#0d6efd" stroke="#fff" strokeWidth="1" />
               )}
-              {/* tooltip bubble */}
-              <g transform={`translate(${Math.min(xAt(hoverIdx) + 8, plotX + plotW - 120)}, ${plotY + 8})`}>
-                <rect width="120" height="40" rx="6" ry="6" fill="#212529" opacity="0.9" />
-                <text x="8" y="16" fontSize="12" fill="#f8f9fa">{xLabels[hoverIdx]}</text>
-                <text x="8" y="30" fontSize="12" fill="#f8f9fa">P/D: {seq[hoverIdx].value != null ? Math.round(seq[hoverIdx].value * 100) / 100 : '—'}</text>
-              </g>
             </g>
           )}
 
           {/* capture pointer events */}
           <rect x={0} y={0} width={w} height={h} fill="transparent" pointerEvents="all" />
         </svg>
+        {tip.show && hoverIdx != null && seq[hoverIdx] && (
+          <div
+            style={{
+              position: 'absolute',
+              left: tip.left,
+              top: tip.top,
+              width: 160,
+              background: '#212529',
+              color: '#f8f9fa',
+              borderRadius: 6,
+              padding: '8px 10px',
+              fontSize: 12,
+              lineHeight: 1.2,
+              pointerEvents: 'none',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.35)'
+            }}
+          >
+            <div style={{ opacity: 0.9 }}>{xLabels[hoverIdx]}</div>
+            <div style={{ opacity: 0.9 }}>P/D: {seq[hoverIdx].value != null ? Math.round(seq[hoverIdx].value * 100) / 100 : '—'}</div>
+          </div>
+        )}
       </div>
     );
   };
